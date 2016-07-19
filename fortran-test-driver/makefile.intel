@@ -1,0 +1,78 @@
+#Compilers
+
+CMP	= mpif90
+C_CMP	= mpicc
+
+OPENMP_FLAGS = -qopenmp
+
+ifdef DBG
+  DEBUG	        = -g -O0 -debug all -check all -traceback -check noarg_temp_created
+
+  #C_DEBUG      = -g -O0 -debug all -traceback 
+  C_DEBUG       = -g -O0 -no-vec -debug all -traceback 
+
+else
+  OPT	        = -g -O3 -xhost -no-prec-div -traceback 
+
+  C_OPT_NOVEC	= -g -O2 -no-vec -traceback 
+  C_OPT	        = -g -O2 -xhost  -traceback -qopt-report=2 
+  #C_OPT	= -g -O2 -xcore-avx2 -align  -traceback -qopt-report=2 
+
+
+endif
+
+ifdef I3E
+  IEEE	= -fp-model strict -fp-model source -prec-div -prec-sqrt
+endif
+
+FREE_FORM	= -free
+
+FLAGS	= $(OPT) $(DEBUG) $(IEEE) -c $(FREE_FORM) $(OPENMP_FLAGS)
+
+CFLAGS	= $(C_OPT) $(C_DEBUG) $(IEEE) $(CHECK) -c
+
+OBJ_RAND123     = orig_random123.o
+
+OBJ =				\
+	precision_mod.o		\
+	scalar123.o		\
+	scalar123_novec.o	\
+	vector123.o		\
+        rng_wrapper.o		\
+	test.o
+
+%.o: %.F
+	$(CMP) $(FLAGS) -o $*.o $<
+
+# %.o: %.f
+# 	$(CMP) $(FLAGS) -o $*.o $<
+
+# %.o: %.f90
+# 	$(CMP) $(FLAGS) -o $*.o $<
+
+orig_random123.o:	orig_random123.c
+	$(C_CMP) $(CFLAGS) -I./Random123 -o orig_random123.o orig_random123.c
+
+scalar123_novec.o:	scalar123_novec.c
+	$(C_CMP) $(C_OPT_NOVEC) -c -o scalar123_novec.o scalar123_novec.c
+
+scalar123.o:	scalar123.c
+	$(C_CMP) $(C_OPT) -c -o scalar123.o scalar123.c
+
+vector123.o:	vector123.c
+	$(C_CMP) $(OPENMP_FLAGS) $(C_OPT) -c -o vector123.o vector123.c
+
+test:	$(OBJ_RAND123) $(OBJ)
+	$(CMP) $(OPENMP_FLAGS) $(OBJ_RAND123) $(OBJ) -o test
+
+        
+clean:
+	rm -f *.o
+	rm -f *~
+	rm -f *.mod
+	rm -f *.lst
+	rm -f *.a
+
+tidy:
+	rm -f fort.*
+	rm -f dots_*
