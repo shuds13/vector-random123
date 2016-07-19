@@ -1,19 +1,15 @@
-Vector-random123 (a.k.a Vector123) is a vectorizable port of the counter based random 
-number generators in Random123. The reformatted funtions are written in plain C and
-optimised for performance and clarity.
+vector-random123 (abbr. below as vector123) is a vectorizable port of the counter based random 
+number generators in Random123. The reformatted functions are written in plain C and
+optimized for performance and clarity.
 
-Random123 can be found *here*
+Random123 resources can be found at http://www.thesalmons.org/john/random123/
 
-
---------------------------------------------------------------------------------
-
-Note: There is no guarrantee of correctness - user should test their code 
-
-Answers for vectorised functions should be identical to originals.
+Note that while the output of the vectorised functions should be identical to originals, there is no
+guarrantee of correctness. This project is still in development. Initial focus is on the Threefry generator.
 
 
 --------------------------------------------------------------------------------
-**Note - current status 
+Note - Current status 
 --------------------------------------------------------------------------------
 
 -Only threefry4x32 fully implemented
@@ -46,33 +42,34 @@ Note: The fortran-test-driver/ directory contains an example of using the vector
 threefry4x32. It also tests performance of different implementations. Running this may be the
 quickest way to go.
 
--------------------------
 
-In  vector123.c set the following for vector length of system.
+Setting Parameters
+-------------------
+
+In vector123.c modify the following paramaters (macros) according to the vector length of system.
 
 VECTOR_LENGTH_BYTES
 NUM_VALS_32
 NUM_VALS_64
 
-Default values will be set
-
 VECTOR_LENGTH_BYTES is used for alignment of data and should be at least the vector length
 in bytes for your system.
 
-NUM_VALS_32 and NUM_VALS_64 are only used for "fix" routines - where vector size is not passed
+NUM_VALS_32 and NUM_VALS_64 are only used for the function variants that have a "_fix" suffix. In others the vector size is passed
 as an argument.
 
 NUM_VALS_32 is the number of sets produced (loop iteration count) for *x32 routines
- (eg threefry4x32f_multi_ss_fix). Should be integer vector size of system in terms of data type
+ (eg threefry4x32f_multi_ss_fix). This should be the integer vector size of system in terms of data type
  or a multiple thereof.
  
 eg. For threefry4x32f_multi_ss_fix - if NUM_VALS_32 is 8 - that is equivalent to doing 8 calls
-    of threefry4x32 in random123.
-    
+    of threefry4x32 in random123. As each threefry4x32 produces a set of 4 values - in total 32
+    values will be returned.
+
 Examples:
 
 eg. AVX-512
-  #define VECTOR_LENGTH_BYTES 64
+ #define VECTOR_LENGTH_BYTES 64
  #define NUM_VALS_32 16
  #define NUM_VALS_64 8
 
@@ -86,22 +83,27 @@ eg. AVX/SSE
  #define NUM_VALS_32 4
  #define NUM_VALS_64 2
 
-Note integer vector operations in AVX are limited to AVX-128 - so same as SSE - however
+Note integer vector operations in AVX are limited to AVX-128 - so the same as SSE - however
 the VECTOR_LENGTH_BYTES should be aligned to full vector size.
 
 As many values as you want can be produced - with multiples of vector size preferable.
-eg could have.
+Eg. You could have:
 
 eg. AVX2
  #define VECTOR_LENGTH_BYTES 32
  #define NUM_VALS_32 8000
  #define NUM_VALS_64 4000
+ 
+It is not difficult to use these values for initialisation of data structures in the calling code - and for many systems
+the processors capability can be detected automatically - eg. __avx512f__. See commented out lines at top of vector123.c
+Alternatively you can use the functions that pass in the vector size (or number of sets). Depending on the system, using a
+compile time constant for the vector length may be either the same or faster than passing in as an argument. It is worth always
+checking that the loop has succesfully vectorised.
 
+OpenMP
+------
 
-It is not to hard to set up to get these values from vector123 - and for many systems
-from preproc defines - eg. __avx512f__. See commented out lines at top of vector123.c
-
-
-
-
+It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on the main loop. This makes it more likely for
+the compiler to successfully vectorise the loop, as well as indicating alignment of work arrays. This requires that OpenMP 4.0 or
+higher is supported. The loop should vectorise without these pragmas enabled, but it is always worth checking.
 
