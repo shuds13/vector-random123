@@ -73,7 +73,7 @@ eg. AVX2
  #define NUM_VALS_32 8000  
  #define NUM_VALS_64 4000  
  
-It is not difficult to use these values for initialisation of data structures in the calling code - and for many systems the processors capability can be detected automatically - eg. __avx512f__. See commented out lines at top of vector123.c Alternatively you can use the functions that pass in the vector size (or number of sets). Depending on the system, using a compile time constant for the vector length may be either the same or faster than passing in as an argument. It is worth always checking that the loop has succesfully vectorised.
+It is not difficult to use these values for initialisation of data structures in the calling code - and for many systems the processors capability can be detected automatically - eg. `#if defined(__AVX512F__)` See commented out lines at top of vector123.c Alternatively you can use the functions that pass in the vector size (or number of sets). Depending on the system, using a compile time constant for the vector length may be either the same or faster than passing in as an argument. It is worth always checking that the loop has succesfully vectorised.
 
 ### OpenMP ###
 
