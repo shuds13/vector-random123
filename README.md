@@ -1,6 +1,6 @@
 ## vector-random123
 
-vector-random123 (abbr. below as vector123) is a vectorizable port of the counter based random number generators in Random123. The reformatted functions are written in plain C and optimized for performance and clarity.
+vector-random123 (abbr. below as vector123) is a vectorizable port of the counter based random number generators in Random123. The reformatted functions are written in plain C and optimized for performance, clarity and portability.
 
 Random123 resources can be found [here](http://www.thesalmons.org/john/random123)
 
