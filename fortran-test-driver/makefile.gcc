@@ -6,14 +6,14 @@ C_CMP	= mpicc
 OPENMP_FLAGS = -fopenmp
 
 ifdef DBG
-  DEBUG = -O0 -g -O0 -Wall -Wextra -fbounds-check -fbacktrace
-  C_DEBUG = -O0 -g -O0 -Wall -Wextra -fbounds-check
+  DEBUG		= -O0 -g -O0 -Wall -Wextra -fbounds-check -fbacktrace
+  C_DEBUG	= -O0 -g -O0 -Wall -Wextra -fbounds-check
   
 else
-  OPT	        = -g -O3 -march=native -funroll-loops -fbacktrace
+  OPT		= -g -O3 -march=native -funroll-loops -fbacktrace
 
-  C_OPT_NOVEC	= -g -O2 -fno-tree-vectorize 
-  C_OPT	        = -g -O2 -ftree-vectorize
+  C_OPT_NOVEC	= -g -O3 -march=native -fno-tree-vectorize 
+  C_OPT	= -g -O3 -ftree-vectorize -march=native
   
   #try
   #OPT	        = -g -O2 -march=native -funroll-loops
@@ -27,7 +27,7 @@ FREE_FORM	=  -ffree-form -ffree-line-length-none
 
 FLAGS	= $(OPT) $(DEBUG) $(IEEE) -c $(FREE_FORM) $(OPENMP_FLAGS)
 
-CFLAGS	= $(C_OPT) $(C_DEBUG) $(IEEE) $(CHECK) -c
+#CFLAGS	= $(C_OPT) $(C_DEBUG) $(IEEE) $(CHECK) -c
 
 OBJ_RAND123     = orig_random123.o
 
@@ -48,8 +48,10 @@ OBJ =				\
 # %.o: %.f90
 # 	$(CMP) $(FLAGS) -o $*.o $<
 
+#No Vec is usually faster in serial
 orig_random123.o:	orig_random123.c
-	$(C_CMP) $(CFLAGS) -I./Random123 -o orig_random123.o orig_random123.c
+	$(C_CMP) $(C_OPT_NOVEC) -I./Random123 -c -o orig_random123.o orig_random123.c
+	#$(C_CMP) $(C_OPT) -I./Random123 -c -o orig_random123.o orig_random123.c
 
 scalar123_novec.o:	scalar123_novec.c
 	$(C_CMP) $(C_OPT_NOVEC) -c -o scalar123_novec.o scalar123_novec.c
@@ -59,6 +61,7 @@ scalar123.o:	scalar123.c
 
 vector123.o:	vector123.c
 	$(C_CMP) $(OPENMP_FLAGS) $(C_OPT) -c -o vector123.o vector123.c
+	#$(C_CMP) -DVECTOR_ORDER $(OPENMP_FLAGS) $(C_OPT) -c -o vector123.o vector123.c
 
 test:	$(OBJ_RAND123) $(OBJ)
 	$(CMP) $(OPENMP_FLAGS) $(OBJ_RAND123) $(OBJ) -o test

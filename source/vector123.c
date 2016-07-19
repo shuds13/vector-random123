@@ -119,6 +119,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // //#define VECTOR_LENGTH_BYTES 16
  #define NUM_VALS_32 4
  #define NUM_VALS_64 2
+ 
 
 // ------------------------------------------------------------------------------------------------/
 // ------------- For standalome version - comment out if using threefry.h etc ---------------------/
@@ -407,13 +408,29 @@ int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREM
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3]; 
       X3[ivec] += 5;     /* X[WCNT4-1] += r  */                 
 
+    }
 
-      //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
-      //u01_closed_open_32_53
+    //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
+    //u01_closed_open_32_53
+
+    //Want buff aligned also
+    #pragma omp simd aligned(X0,X1,X2,X3)         
+    for (ivec=0;ivec < NUM_VALS_32; ivec++) {
+
+#ifdef VECTOR_ORDER      
+      //Vector order - in stride
+      buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32;
+#else      
+      //Set order - Stride one over sets - as if multiple scalar calls
+      //Vector dimension out of stride
       buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
       buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
       buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
       buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
+#endif
 
     }
     
@@ -548,13 +565,29 @@ int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT,
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3]; 
       X3[ivec] += 5;     /* X[WCNT4-1] += r  */                 
 
+    }
 
-      //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
-      //u01_closed_open_32_53
+    //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
+    //u01_closed_open_32_53
+
+    //Want buff aligned also
+    #pragma omp simd aligned(X0,X1,X2,X3)         
+    for (ivec=0;ivec < NUM_VALS_32; ivec++) {
+
+#ifdef VECTOR_ORDER      
+      //Vector order - in stride
+      buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32;
+#else      
+      //Set order - Stride one over sets - as if multiple scalar calls
+      //Vector dimension out of stride
       buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
       buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
       buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
       buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
+#endif
 
     }
     
@@ -1119,21 +1152,38 @@ int threefry4x32f_multi_ctrkey_all(unsigned int* CTR1,unsigned int* CTR2,unsigne
       X0[ivec] += ks0[ivec]; X1[ivec] += ks1[ivec]; X2[ivec] += ks2[ivec]; X3[ivec] += ks3[ivec]; 
       X3[ivec] += 5;     /* X[WCNT4-1] += r  */                 
 
+    }
 
+
+    //Want buff aligned also
+    #pragma omp simd aligned(X0,X1,X2,X3)         
+    for (ivec=0;ivec < NUM_VALS_32; ivec++) {
+    
       //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
       //u01_closed_open_32_53
 //       RAN1[ivec] = X0[ivec]*R123_0x1p_32;
 //       RAN2[ivec] = X1[ivec]*R123_0x1p_32;
 //       RAN3[ivec] = X2[ivec]*R123_0x1p_32;
 //       RAN4[ivec] = X3[ivec]*R123_0x1p_32;
-      
+
+#ifdef VECTOR_ORDER      
+      //Vector order - in stride
+      buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32;
+#else      
+      //Set order - Stride one over sets - as if multiple scalar calls
+      //Vector dimension out of stride
       buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
       buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
       buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
       buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
+#endif
 
     }
     
+
     return 0; 
 }
 
