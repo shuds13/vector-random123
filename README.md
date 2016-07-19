@@ -14,7 +14,7 @@ Note that while the random numbers generated for a given set of counters/keys in
 
 * Though answers tested have been identical to the crush resistant Random123, a thorough QA has not been carried out and no RNG test batteries have yet been run.
 
-* __Priority__ Currently set to creates values between 0 < x <= 1 by default. This will be made generic in future.
+* __Priority__ The functions currently output values between 0 < x <= 1 by default. Different options will be provided soon.
   
 * Documentation - including routines available will be added soon. Currently see vector123.c files and in fortran harness see interface section in rng_wrapper.F for some info.
  
