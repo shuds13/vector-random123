@@ -59,7 +59,7 @@ module rng_wrapper_mod
       import :: c_int, c_double, num_vals
       integer(kind=c_int),dimension(4) ,intent(in)             :: ctr4
       integer(kind=c_int),dimension(4) ,intent(in)             :: key4        
-      real(kind=c_double),dimension(num_vals) ,intent(inout)   :: buff
+      real(kind=c_double),dimension(4) ,intent(inout)   :: buff
       
       !note - alt. can just use an asterisk for size if dont know here - only passing pointer - works for me
       !real(kind=c_double),dimension(*) ,intent(inout)          :: buff
@@ -70,7 +70,7 @@ module rng_wrapper_mod
       import :: c_int, c_double, num_vals
       integer(kind=c_int),dimension(4) ,intent(in)             :: ctr4
       integer(kind=c_int),dimension(4) ,intent(in)             :: key4        
-      real(kind=c_double),dimension(num_vals) ,intent(inout)   :: buff
+      real(kind=c_double),dimension(4) ,intent(inout)   :: buff
     end function threefry4x32f_scalar 
 
     !scalar - built with novec
@@ -78,7 +78,7 @@ module rng_wrapper_mod
       import :: c_int, c_double, num_vals
       integer(kind=c_int),dimension(4) ,intent(in)             :: ctr4
       integer(kind=c_int),dimension(4) ,intent(in)             :: key4        
-      real(kind=c_double),dimension(num_vals) ,intent(inout)   :: buff
+      real(kind=c_double),dimension(4) ,intent(inout)   :: buff
     end function threefry4x32f_novec 
 
 
