@@ -115,10 +115,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // #define NUM_VALS_64 4
 
 //eg. AVX/SSE - may keep length 32 for AVX1
- #define VECTOR_LENGTH_BYTES 32
+ #define VECTOR_LENGTH_BYTES 64
 // //#define VECTOR_LENGTH_BYTES 16
- #define NUM_VALS_32 4
- #define NUM_VALS_64 2
+ #define NUM_VALS_32 16
+ #define NUM_VALS_64 8
  
 
 // ------------------------------------------------------------------------------------------------/

@@ -15,7 +15,7 @@ module rng_wrapper_mod
   ! it is not to hard to set up to get this value from random123 - and for many systems from preproc defines - eg. __avx512f__
 
   !set this to your system
-  integer(kind=ik4),parameter   ::  num_vals  = 4 ! vector length (or multiple of)
+  integer(kind=ik4),parameter   ::  num_vals  = 16 ! vector length (or multiple of)
   
 
   integer(kind=ik4),parameter   ::  buffersize_single = 4_ik4    !eg. for 4x32 this should be 4
