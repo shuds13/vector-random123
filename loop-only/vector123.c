@@ -262,6 +262,11 @@ int main (void)
     free(X2);
     free(X3);
     
+<<<<<<< HEAD
+=======
+    printf("X0[100]  = %d",X0[100]);
+    printf("X3[1000] = %d",X3[1000]);
+>>>>>>> origin/master
 
     return 0; 
 }
