@@ -117,10 +117,10 @@ int main (void)
     }
     
     //loop over 4 vals (not vector dimension)
-    for (ictr=0;ictr < 4; ictr++) {
-      ks[ictr] = KEY4[ictr];
-      ks[4] ^= KEY4[ictr]; 
-    }
+    //for (ictr=0;ictr < 4; ictr++) {
+    //  ks[ictr] = KEY4[ictr];
+    //  ks[4] ^= KEY4[ictr]; 
+    //}
     
     ks[0] = 10;
     ks[1] = 54321;
