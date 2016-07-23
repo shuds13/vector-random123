@@ -232,8 +232,8 @@ int main (void)
 
     }
     
-    printf("x0[100]  = %d",x0[100]);
-    printf("x3[1000] = %d",x3[1000]);
+    printf("X0[100]  = %d",X0[100]);
+    printf("X3[1000] = %d",X3[1000]);
 
     return 0; 
 }
