@@ -34,7 +34,9 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // Allows use of short forms like uint32_t
 #include <stdint.h>
@@ -50,8 +52,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #define VECTOR_LENGTH_BYTES 64
-#define NUM_VALS_32 16000
-#define NUM_VALS_64 8000
+#define NUM_VALS_32 1600000
+#define NUM_VALS_64 800000
 
 #define SKEIN_MK_64(hi32,lo32)  ((lo32) + (((uint64_t) (hi32)) << 32))
 #define SKEIN_KS_PARITY64         SKEIN_MK_64(0x1BD11BDA,0xA9FC1A22)
@@ -93,17 +95,30 @@ int main (void)
     int ivec;    
     int ictr;  // For iteration over ctk/keys 1,2,3,4
     
+    clock_t start, diff;
+    int msec;
+    
     //uint32_t ks[4+1]; //Assuming one set of keys
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks[4+1]; //Assuming one set of keys
-              
-    //uint32_t X[4][NUM_VALS_32];
-    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X[4][NUM_VALS_32];
-
+               
     //Use 1D arrays for aligned accesses when supply vector size
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X0[NUM_VALS_32];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X1[NUM_VALS_32];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X2[NUM_VALS_32];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X3[NUM_VALS_32];
+    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X0[NUM_VALS_32];
+    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X1[NUM_VALS_32];
+    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X2[NUM_VALS_32];
+    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X3[NUM_VALS_32];
+
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X0;
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X1;
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X2;
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X3;
+    
+    X0 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
+    X1 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
+    X2 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
+    X3 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
+    
+    
+    //start = clock();
     
     ks[4] =  SKEIN_KS_PARITY32;
 
@@ -117,10 +132,10 @@ int main (void)
     }
     
     //loop over 4 vals (not vector dimension)
-    for (ictr=0;ictr < 4; ictr++) {
-      ks[ictr] = KEY4[ictr];
-      ks[4] ^= KEY4[ictr]; 
-    }
+    //for (ictr=0;ictr < 4; ictr++) {
+    //  ks[ictr] = KEY4[ictr];
+    //  ks[4] ^= KEY4[ictr]; 
+    //}
     
     ks[0] = 10;
     ks[1] = 54321;
@@ -131,6 +146,8 @@ int main (void)
       ks[4] ^= ks[ictr]; 
     }
    
+    start = clock();
+
     //loop over vector length
     #pragma omp simd aligned(X0,X1,X2,X3,ks)         
     for (ivec=0;ivec < NUM_VALS_32; ivec++) {
@@ -231,9 +248,20 @@ int main (void)
       //buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
 
     }
+
+    diff = clock() - start;
+
+    msec = diff * 1000 / CLOCKS_PER_SEC;
+//    printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
+    printf("Time taken %d.%d seconds\n", msec/1000, msec%1000);
+    printf("X0[100]  = %d\n",X0[100]);
+    printf("X3[1000] = %d\n",X3[1000]);
     
-    printf("x0[100]  = %d",x0[100]);
-    printf("x3[1000] = %d",x3[1000]);
+    free(X0);
+    free(X1);
+    free(X2);
+    free(X3);
+    
 
     return 0; 
 }
