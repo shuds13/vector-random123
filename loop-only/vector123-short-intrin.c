@@ -76,10 +76,10 @@ static inline uint64_t RotL_64(uint64_t x, unsigned int N)
 //*check - not sure why epi32A needs to be a constant
 //template <int nCount>
 //__m512i _mm512_myrol_epi32(__m512i const & epi32A)
-static inline __m512i _mm512_myrol_epi32(__m512i const & epi32A,unsigned int nCount)
+static inline __m512i _mm512_myrol_epi32(__m512i epi32A,unsigned int nCount)
 {
-	__m512i const epi32H = _mm512_slli_epi32(epi32A, nCount);
-	__m512i const epi32L = _mm512_srli_epi32(epi32A, 32 - nCount);
+	__m512i epi32H = _mm512_slli_epi32(epi32A, nCount);
+	__m512i epi32L = _mm512_srli_epi32(epi32A, 32 - nCount);
 	return _mm512_or_epi32(epi32H, epi32L);
 	//return _mm512_or_si512(epi32AH, epi32L);	//what would be the difference?
 }
@@ -205,17 +205,17 @@ int main (void)
 */
 
       // load X array vectors   
-      __m512i tempX0 = _mm512_load_si512(&X0[i]);
-      __m512i tempX1 = _mm512_load_si512(&X1[i]);
-      __m512i tempX2 = _mm512_load_si512(&X2[i]);
-      __m512i tempX3 = _mm512_load_si512(&X3[i]);
+      __m512i tempX0 = _mm512_load_si512(&X0[ivec]);
+      __m512i tempX1 = _mm512_load_si512(&X1[ivec]);
+      __m512i tempX2 = _mm512_load_si512(&X2[ivec]);
+      __m512i tempX3 = _mm512_load_si512(&X3[ivec]);
       
       //load ks vector
       //*check - do i have to load and broadcast???
       
       //__m512i tempks = _mm512_load_si512(&ks[i]);
       //__m512i tempks _mm512_broadcastd_epi32(__m128i a)
-      __m512i tempks0 = _mm512_broadcastd_epi32(&ks[0]);
+      __m512i tempks0 = _mm512_broadcastd_epi32(ks[0]);
       __m512i tempks1 = _mm512_broadcastd_epi32(&ks[1]);
       __m512i tempks2 = _mm512_broadcastd_epi32(&ks[2]);
       __m512i tempks3 = _mm512_broadcastd_epi32(&ks[3]);
@@ -236,7 +236,7 @@ int main (void)
      //__m512i _mm512_rol_epi32 (__m512i a, const int imm8);
      
      //check* works - if not try just const - rather than enum type...
-     __m512i _mm512_rol_epi32 (tempX1, R_32x4_0_0); 
+     __m512i _mm512_rol_epi32(tempX1, R_32x4_0_0); 
 #else
      //Use shift left/shift right and OR
      __m512i _mm512_myrol_epi32(tempX1, R_32x4_0_0);      
@@ -244,7 +244,7 @@ int main (void)
       
       
       //X1[ivec] ^= X0[ivec];
-      tempX1 = _mm512_xor_epi32(tempX1, tempX0)
+      tempX1 = _mm512_xor_epi32(tempX1, tempX0);
        
 
 
