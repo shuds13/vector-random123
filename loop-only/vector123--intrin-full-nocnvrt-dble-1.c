@@ -63,6 +63,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define R123_0x1p_32                (1./4294967296.)   // for 32_53 CO,OC,OO int4 to d.p
 
+#define halfround(X,Y,ROL_VAL) \
+      X = _mm512_add_epi32(X, Y); \
+      Y = _mm512_rol_epi32(Y, ROL_VAL); \
+      Y = _mm512_xor_epi32(Y, X);
+
 
 static inline uint32_t RotL_32(uint32_t x, unsigned int N)
 {
@@ -84,12 +89,6 @@ static inline __m512i _mm512_myrol_epi32(__m512i epi32A,unsigned int nCount)
 	return _mm512_or_epi32(epi32H, epi32L);
 	//return _mm512_or_si512(epi32AH, epi32L);	//what would be the difference?
 }
-
-#define round(X,Y,ROL_VAL) \
-      X = _mm512_add_epi32(X, Y); \
-      Y = _mm512_rol_epi32(Y, ROL_VAL); \
-      Y = _mm512_xor_epi32(Y, X);
-
 
 /* Rotation constants: */
 enum r123_enum_threefry32x4 {
@@ -220,7 +219,7 @@ int main (void)
       //__m512i tempks3 = _mm512_broadcastd_epi32(&ks[3]);
 
       //-----------------------------------------------------
-      //Injection 0.
+      //Injection 0. (from ks0)
       tempX0 = _mm512_add_epi32(tempX0, tempks0);
       tempX1 = _mm512_add_epi32(tempX1, tempks1);
       tempX2 = _mm512_add_epi32(tempX2, tempks2);
@@ -229,21 +228,21 @@ int main (void)
       //sh - so far used 8 vector registers.
       //-----------------------------------------------------
       
-      //Rounds
-      round(tempX0,tempX1,R_32x4_0_0)
-      round(tempX2,tempX3,R_32x4_0_1)
+      //Rounds 1-4
+      halfround(tempX0,tempX1,R_32x4_0_0)
+      halfround(tempX2,tempX3,R_32x4_0_1)
       
-      round(tempX0,tempX3,R_32x4_1_0)
-      round(tempX2,tempX1,R_32x4_1_1)
+      halfround(tempX0,tempX3,R_32x4_1_0)
+      halfround(tempX2,tempX1,R_32x4_1_1)
       
-      round(tempX0,tempX1,R_32x4_2_0)
-      round(tempX2,tempX3,R_32x4_2_1)
+      halfround(tempX0,tempX1,R_32x4_2_0)
+      halfround(tempX2,tempX3,R_32x4_2_1)
       
-      round(tempX0,tempX3,R_32x4_3_0)
-      round(tempX2,tempX1,R_32x4_3_1)
+      halfround(tempX0,tempX3,R_32x4_3_0)
+      halfround(tempX2,tempX1,R_32x4_3_1)
      
       //-----------------------------------------------------
-      //Injection 1.
+      //Injection 1. (from ks1)
       tempX0 = _mm512_add_epi32(tempX0, tempks1);
       tempX1 = _mm512_add_epi32(tempX1, tempks2);
       tempX2 = _mm512_add_epi32(tempX2, tempks3);
@@ -251,21 +250,21 @@ int main (void)
       
       //-----------------------------------------------------
       
-      //Rounds
-      round(tempX0,tempX1,R_32x4_4_0)
-      round(tempX2,tempX3,R_32x4_4_1)
+      //Rounds 5-8
+      halfround(tempX0,tempX1,R_32x4_4_0)
+      halfround(tempX2,tempX3,R_32x4_4_1)
       
-      round(tempX0,tempX3,R_32x4_5_0)
-      round(tempX2,tempX1,R_32x4_5_1)
+      halfround(tempX0,tempX3,R_32x4_5_0)
+      halfround(tempX2,tempX1,R_32x4_5_1)
       
-      round(tempX0,tempX1,R_32x4_6_0)
-      round(tempX2,tempX3,R_32x4_6_1)
+      halfround(tempX0,tempX1,R_32x4_6_0)
+      halfround(tempX2,tempX3,R_32x4_6_1)
       
-      round(tempX0,tempX3,R_32x4_7_0)
-      round(tempX2,tempX1,R_32x4_7_1)
+      halfround(tempX0,tempX3,R_32x4_7_0)
+      halfround(tempX2,tempX1,R_32x4_7_1)
 
       //-----------------------------------------------------
-      //Injection 2.
+      //Injection 2. (from ks2)
       tempX0 = _mm512_add_epi32(tempX0, tempks2);
       tempX1 = _mm512_add_epi32(tempX1, tempks3);
       tempX2 = _mm512_add_epi32(tempX2, tempks4);
@@ -273,21 +272,21 @@ int main (void)
       
       //-----------------------------------------------------
       
-      //Rounds
-      round(tempX0,tempX1,R_32x4_0_0)
-      round(tempX2,tempX3,R_32x4_0_1)
+      //Rounds 9-12
+      halfround(tempX0,tempX1,R_32x4_0_0)
+      halfround(tempX2,tempX3,R_32x4_0_1)
       
-      round(tempX0,tempX3,R_32x4_1_0)
-      round(tempX2,tempX1,R_32x4_1_1)
+      halfround(tempX0,tempX3,R_32x4_1_0)
+      halfround(tempX2,tempX1,R_32x4_1_1)
       
-      round(tempX0,tempX1,R_32x4_2_0)
-      round(tempX2,tempX3,R_32x4_2_1)
+      halfround(tempX0,tempX1,R_32x4_2_0)
+      halfround(tempX2,tempX3,R_32x4_2_1)
       
-      round(tempX0,tempX3,R_32x4_3_0)
-      round(tempX2,tempX1,R_32x4_3_1)
+      halfround(tempX0,tempX3,R_32x4_3_0)
+      halfround(tempX2,tempX1,R_32x4_3_1)
       
       //-----------------------------------------------------
-      //Injection 3.
+      //Injection 3. (from ks3)
       tempX0 = _mm512_add_epi32(tempX0, tempks3);
       tempX1 = _mm512_add_epi32(tempX1, tempks4);
       tempX2 = _mm512_add_epi32(tempX2, tempks0);
@@ -295,21 +294,21 @@ int main (void)
       
       //-----------------------------------------------------
       
-      //Rounds
-      round(tempX0,tempX1,R_32x4_4_0)
-      round(tempX2,tempX3,R_32x4_4_1)
+      //Rounds 13-16
+      halfround(tempX0,tempX1,R_32x4_4_0)
+      halfround(tempX2,tempX3,R_32x4_4_1)
       
-      round(tempX0,tempX3,R_32x4_5_0)
-      round(tempX2,tempX1,R_32x4_5_1)
+      halfround(tempX0,tempX3,R_32x4_5_0)
+      halfround(tempX2,tempX1,R_32x4_5_1)
       
-      round(tempX0,tempX1,R_32x4_6_0)
-      round(tempX2,tempX3,R_32x4_6_1)
+      halfround(tempX0,tempX1,R_32x4_6_0)
+      halfround(tempX2,tempX3,R_32x4_6_1)
       
-      round(tempX0,tempX3,R_32x4_7_0)
-      round(tempX2,tempX1,R_32x4_7_1)
+      halfround(tempX0,tempX3,R_32x4_7_0)
+      halfround(tempX2,tempX1,R_32x4_7_1)
       
       //-----------------------------------------------------
-      //Injection 3.
+      //Injection 4. (from ks4)
       tempX0 = _mm512_add_epi32(tempX0, tempks4);
       tempX1 = _mm512_add_epi32(tempX1, tempks0);
       tempX2 = _mm512_add_epi32(tempX2, tempks1);
@@ -317,22 +316,30 @@ int main (void)
       
       //-----------------------------------------------------
       
-      //Rounds
-      round(tempX0,tempX1,R_32x4_0_0)
-      round(tempX2,tempX3,R_32x4_0_1)
+      //Rounds 17-20
+      halfround(tempX0,tempX1,R_32x4_0_0)
+      halfround(tempX2,tempX3,R_32x4_0_1)
       
-      round(tempX0,tempX3,R_32x4_1_0)
-      round(tempX2,tempX1,R_32x4_1_1)
+      halfround(tempX0,tempX3,R_32x4_1_0)
+      halfround(tempX2,tempX1,R_32x4_1_1)
       
-      round(tempX0,tempX1,R_32x4_2_0)
-      round(tempX2,tempX3,R_32x4_2_1)
+      halfround(tempX0,tempX1,R_32x4_2_0)
+      halfround(tempX2,tempX3,R_32x4_2_1)
       
-      round(tempX0,tempX3,R_32x4_3_0)
-      round(tempX2,tempX1,R_32x4_3_1)
+      halfround(tempX0,tempX3,R_32x4_3_0)
+      halfround(tempX2,tempX1,R_32x4_3_1)
       
       //-----------------------------------------------------
     
-//at end store bac - but only after all iterations
+      //Injection 5. (from ks0)
+      tempX0 = _mm512_add_epi32(tempX0, tempks0);
+      tempX1 = _mm512_add_epi32(tempX1, tempks1);
+      tempX2 = _mm512_add_epi32(tempX2, tempks2);
+      tempX3 = _mm512_add_epi32(tempX3, tempks3);
+      
+      //-----------------------------------------------------
+
+//Store X values
       _mm512_store_epi32(&X0[ivec],tempX0);
       _mm512_store_epi32(&X1[ivec],tempX1);
       _mm512_store_epi32(&X2[ivec],tempX2);
