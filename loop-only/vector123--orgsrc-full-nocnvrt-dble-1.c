@@ -35,8 +35,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <time.h>
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 // Allows use of short forms like uint32_t
 #include <stdint.h>
@@ -95,8 +97,12 @@ int main (void)
     int ivec;    
     int ictr;  // For iteration over ctk/keys 1,2,3,4
     
+    //clock - cpu timing
     clock_t start, diff;
     int msec;
+
+    //gettimeofday - wall clock timing
+    struct timeval  tv1, tv2;
     
     //uint32_t ks[4+1]; //Assuming one set of keys
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks[4+1]; //Assuming one set of keys
@@ -119,6 +125,7 @@ int main (void)
     
     
     //start = clock();
+    //gettimeofday(&tv1, NULL);
     
     ks[4] =  SKEIN_KS_PARITY32;
 
@@ -147,6 +154,7 @@ int main (void)
     }
    
     start = clock();
+    gettimeofday(&tv1, NULL);
 
     //loop over vector length
     #pragma omp simd aligned(X0,X1,X2,X3,ks)         
@@ -250,13 +258,20 @@ int main (void)
     }
 
     diff = clock() - start;
+    gettimeofday(&tv2, NULL);
 
     msec = diff * 1000 / CLOCKS_PER_SEC;
 //    printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
-    printf("Time taken %d.%d seconds\n", msec/1000, msec%1000);
-    printf("X0[100]  = %d\n",X0[100]);
-    printf("X3[1000] = %d\n",X3[1000]);
+    printf("Time taken (CPU)  = %d.%d seconds\n", msec/1000, msec%1000);
     
+    printf ("Time taken (Wall) = %f seconds\n",
+         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+         (double) (tv2.tv_sec - tv1.tv_sec));
+    
+    printf("X0[100]  = %u\n",X0[100]);
+    printf("X3[1000] = %u\n",X3[1000]);
+    printf("\nX2[NUM_VALS_32-1] = %u\n\n",X2[NUM_VALS_32-1]);
+        
     free(X0);
     free(X1);
     free(X2);
