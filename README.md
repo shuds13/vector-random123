@@ -121,7 +121,7 @@ Vector v Scalar with conversion to double:
 
 ![image](https://cloud.githubusercontent.com/assets/16457059/24082662/41add746-0cc1-11e7-9367-4481cad143fd.png)  
 
-Vector v scalar with conversion to float:
+Vector v Scalar with conversion to float:
 * Ivy Bridge ~ 2.1x
 * Haswell    ~ 3.1x
 * KNL        ~ 9.4x
