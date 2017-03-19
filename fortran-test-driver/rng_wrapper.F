@@ -51,7 +51,12 @@ module rng_wrapper_mod
     
   ! interface block
   interface
-             
+    
+    ! Utility routine - currently just prints rather than returning.
+    integer(c_int) function v123_get_vec_sizes() bind(c,name='v123_get_vec_sizes')
+      import :: c_int
+    end function v123_get_vec_sizes   
+              
     ! scalar variants
 
     !original threefry - should be built -no-vec as faster
@@ -159,6 +164,13 @@ module rng_wrapper_mod
 
  contains
 
+  subroutine test_vec_sizes()
+    implicit none    
+    integer(kind=ik4) :: ierror ! a return value 
+       
+    ierror = v123_get_vec_sizes()
+    
+  end subroutine test_vec_sizes
 
 !=========================================================================================================
 !single call versions

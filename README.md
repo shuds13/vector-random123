@@ -10,19 +10,22 @@ Note that while the random numbers generated for a given set of counters/keys in
 ## Current status 
 
 
-* Only threefry4x32 fully implemented
+* Only threefry4x32 fully implemented and tested
+
+* threefry4x32, threefry4x64, threefry2x64 have been implemented.
+
 
 * Though answers tested have been identical to the crush resistant Random123, a thorough QA has not been carried out and no RNG test batteries have yet been run.
 
 * __Priority__ The functions currently output doubles between 0 <= x < 1 (closed/open) by default. Different options will be provided soon.
   
-* Documentation - including routines available will be added soon. Currently see vector123.c files and in fortran harness see interface section in rng_wrapper.F for some info.
+* Documentation - including routines available will be added soon. Some information is provided in the source files (see source directory) files and in fortran harness see interface section in rng_wrapper.F for some info.
  
 * Results for different platforms - also to follow
  
 * Current version contains vectorisable loop inside the function. A vectorisable version that can be called inside a loop is to follow.
 
-* Currently the vector123 functions are set up to be standalone. However, see the comments at top of vector123.c files to see how to pick up the Random123/ directory. This provides access to some of the features files for different systems.
+* Currently the vector123 functions are set up to be standalone. However, see the comments at top of source files to see how to pick up the Random123/ directory. This provides access to some of the features files for different systems.
 
  
 ## Instructions for use
@@ -32,7 +35,7 @@ Note: The fortran-test-driver/ directory contains an example of using the vector
 
 ### Setting Parameters ###
 
-In vector123.c modify the following paramaters (macros) according to the vector length of system.
+Modify the following paramaters (macros) according to the vector length of system.
 
 VECTOR_LENGTH_BYTES  
 NUM_VALS_32  
@@ -73,8 +76,89 @@ eg. AVX2
  #define NUM_VALS_32 8000  
  #define NUM_VALS_64 4000  
  
-It is not difficult to use these values for initialisation of data structures in the calling code - and for many systems the processors capability can be detected automatically - eg. `#if defined(__AVX512F__)` See commented out lines at top of vector123.c Alternatively you can use the functions that pass in the vector size (or number of sets). Depending on the system, using a compile time constant for the vector length may be either the same or faster than passing in as an argument. It is worth always checking that the loop has succesfully vectorised.
+It is not difficult to use these values for initialisation of data structures in the calling code - and for many systems the processors capability can be detected automatically - eg. `#if defined(__AVX512F__)` See commented out lines at top of the source files Alternatively you can use the functions that pass in the vector size (or number of sets). Depending on the system, using a compile time constant for the vector length may be either the same or faster than passing in as an argument. It is worth always checking that the loop has succesfully vectorised.
 
 ### OpenMP ###
 
 It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on the main loop. This makes it more likely for the compiler to successfully vectorise the loop, as well as indicating alignment of work arrays. This requires that OpenMP 4.0 or higher is supported. The loop should vectorise without these pragmas enabled, but it is always worth checking.
+
+
+<br />
+
+## Benchmarking ##
+
+Results from benchmarking on Ivy Bridge, Haswell and Xeon Phi(KNL)
+
+see loop-only directory for more details - including source code used and full results.
+
+All results were based on threefry4x32
+
+
+### Single threaded performance ###
+
+These tests show that the threefry generator on its own gains very impressive vectorisation
+performance - near perfect when taking into account the relative number of ALUs and vector units
+on each system. In particular KNL, when using the fast rol intrinsic has 16.3x over non-vectorised
+version - 100% vector efficiency. This should be supported from source code in future compiler verssions.
+
+Comparison producing 64 million random numbers.
+
+Vector v scalar for pure threefry4x32 generator:
+Ivy Bridge ~ 2.9x
+Haswell    ~ 5.2x
+KNL        ~ 12.8/16.4x(AVX512 intrinsics)
+
+The conversion to floats or double, however, takes longer than the generator and reduces speed up significantly.
+In particular, if converting 32-bit ints to doubles will require a split of the vector.
+
+Vector v scalar with conversion to double:
+Ivy Bridge ~ 1.8x
+Haswell    ~ 2.3x
+KNL        ~ 6.8x
+
+
+Vector v scalar with conversion to float:
+Ivy Bridge ~ 2.1x
+Haswell    ~ 3.1x
+KNL        ~ 9.4x
+
+
+#### Haswell v KNL ####
+
+The results below are based on the source code versions.
+
+While KNL has the best speed up from vectorisation - Haswell is 1.6x faster than KNL for single thread performance
+on pure threefry (0.078sec to 0.123). Note: The AVX512 intrinsics version on KNL achieves 0.096sec
+
+KNL seems to do better with the conversions, however.
+With conversion to floats KNL has parity with Haswell at single thread.  0.179 v 0.183(knl)
+
+Likewise with conversion to doubles - 0.274 v 0.264(knl)
+
+Thus KNLs cycles per byte is signficantly better than Haswell, taking advantage of better vector performance.
+
+
+
+### Fully populated processors - using OpenMP threads ###
+
+
+Comparison producing 640 million random integers (no float/double conversions).
+
+E5-2680v3 Haswell 12-core 2.5GHz 
+v
+KNL-7210 (64 cores - 4HW threads per core) 1.3GHz
+
+================================================================================
+
+Best results on one 12-core Haswell:
+24 threads (2 threads/core): = 0.077792 seconds (3.1 x non-vec code)
+
+Best results on one KNL-7210:
+128 threads (2HW threads/core): = 0.015215 seconds (14.0 x non-vec code)
+
+KNL = 5.1x Haswell
+
+Note: 
+Threaded KNL results used the source code version
+(does not include fast rol instrinsic as of intel 16.0):
+

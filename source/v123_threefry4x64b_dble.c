@@ -1,6 +1,6 @@
 //--------------------------------------------------------------------------------------------------
-// S. Hudson: Vector_Random123: threefry4x32
-// Standard C vectorizable implementation of Random123 threefry4x32 functions.
+// S. Hudson: Vector_Random123: threefry4x64
+// Standard C vectorizable implementation of Random123 threefry4x64 functions.
 // Based on Random123 functions - see copyright notice.
 //--------------------------------------------------------------------------------------------------
 
@@ -45,13 +45,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Overview:
 
-  Below is a list of available routines which implement by default 20 rounds of threefry4x32. Instead of a single
+  Below is a list of available routines which implement by default 20 rounds of threefry4x64. Instead of a single
   set of 4 values, there routines produce multiple sets as described below. The variants allow for simplified
   interfaces for single streams (ss).
 
-  threefry4x32f_multi_ss_fix:     Single stream version using vector/array length specified in this file (NUM_VALS_32)
-  threefry4x32f_multi_ss:         Single stream version using provided vector/array length
-  threefry4x32f_multi_ctrkey_all: Multi-stream version - user supplies explicit counters/keys for all RNs (Random Numbers).
+  threefry4x64f_multi_ss_fix:     Single stream version using vector/array length specified in this file (NUM_VALS_64)
+  threefry4x64f_multi_ss:         Single stream version using provided vector/array length
+  threefry4x64f_multi_ctrkey_all: Multi-stream version - user supplies explicit counters/keys for all RNs (Random Numbers).
 
   Utility Routines
   v123_get_vec_sizes:             Returns parameter/macro values for vector and array sizes
@@ -61,7 +61,7 @@ Overview:
   
   Original scalar code: 
   
-  For comparison, the original threefry4x32 code passes one set of counters (as array) and one set of
+  For comparison, the original threefry4x64 code passes one set of counters (as array) and one set of
   keys (as array) and produce one set of RNs.
   (ctr1, ctr2, ctr3, ctr4) and (key1, key2, key3, key4) - produces (ran1, ran2, ran3, ran4)
 
@@ -70,7 +70,7 @@ Overview:
   Vector code:
 
   Single stream variants:
-  threefry4x32f_multi_ss_fix and threefry4x32f_multi_ss:
+  threefry4x64f_multi_ss_fix and threefry4x64f_multi_ss:
          
   Input: Pass one set of counters (as array) and one set of keys (as array) as with scalar code.
   CTR4 = (ctr1, ctr2, ctr3, ctr4) and KEY4 = (key1, key2, key3, key4)
@@ -88,7 +88,7 @@ Overview:
   Note: Only one ctr value need be changed per set to produce four different RNs as output.
 
   The output buffer by default will contain the four values produced by set 0 followed by the four produced by set 1 etc,
-  as if the scalar version of threefry4x32 was called repeatedly incrementeing ctr1 each time. The size of the output
+  as if the scalar version of threefry4x64 was called repeatedly incrementeing ctr1 each time. The size of the output
   buffer will be the set size * array (or vector) length (e.g. 4 x 8 in this example).
   
           <--- from set 0 ----->   <--- from set 1 -----> .... <--- from set 7 ----->
@@ -99,14 +99,14 @@ Overview:
 
   The array size can be anything, but the machine vector length or a multiple thereof is preferable for performance.
   
-  For threefry4x32f_multi_ss_fix, the array size is set in this file (NUM_VALS_32) which is either a specified
+  For threefry4x64f_multi_ss_fix, the array size is set in this file (NUM_VALS_64) which is either a specified
   default or, if a vector instruction set is recognised at compilation by the listed predefined macros, it is set to
-  the machine vector length. This must, of course, be consistent with calling code. See NUM_VALS_32 below. Note that
+  the machine vector length. This must, of course, be consistent with calling code. See NUM_VALS_64 below. Note that
   this constant is not used by the other routines which take the array length as an argument.
 
 
-  threefry4x32f_multi_ctrkey_all:
-  The routine threefry4x32f_multi_ctrkey_all enables the user to supply any permutation of input counters and keys.
+  threefry4x64f_multi_ctrkey_all:
+  The routine threefry4x64f_multi_ctrkey_all enables the user to supply any permutation of input counters and keys.
   The array arguments supplied for counter and keys are of array/vector length with a seperate array argument for each
   counter/key.
   
@@ -143,13 +143,13 @@ Notes:
 
 
 // ------------------------------------------------------------------------------------------------/
-// ------------- Automatic determination of vector length for threefry4x32f_multi_ss_fix ----------/
+// ------------- Automatic determination of vector length for threefry4x64f_multi_ss_fix ----------/
 // ------------------------------------------------------------------------------------------------/
 
 // The macro VECTOR_LENGTH_BYTES is used for alignment of arrays in all routines (on supported platforms).
 // This should be at least the machine vector length in bytes.
 
-// NUM_VALS_32 is used only in routines with the _fix suffix (which refers to a fixed array size). This is actually
+// NUM_VALS_64 is used only in routines with the _fix suffix (which refers to a fixed array size). This is actually
 // the number of sets of values (see above).
 
 // For supported platforms the conditional preprocessor code below will set these macros to architecture vector lengths.
@@ -243,6 +243,7 @@ Notes:
 #define R123_0x1p_32f               (1.f/4294967296.f)                        // for u01_closed_closed_32_24 int4 to s.p
 #define R123_0x1p_32                (1./4294967296.)                          // for 32_53 CO,OC,OO int4 to d.p
 #define R123_0x1p_64                (1./(4294967296.*4294967296.))            // for u01_closed_closed_64_53 int8 to d.p
+#define R123_0x1p_53                (1./(4294967296.*2097152.))               // for u01_closed_open_64_53 / u01_open_closed_64_53
 
 
 // u01_closed_closed_32_24 is i*R123_0x1p_32f
@@ -253,8 +254,8 @@ Notes:
 // u01_open_open_32_53     is (0.5+i)*R123_0x1p_32
 
 // u01_closed_closed_64_53 is i*R123_0x1p_64
-
-
+// u01_closed_open_64_53 is (i>>11)*R123_0x1p_53
+// u01_open_closed_64_53 is (1+(i>>11))*R123_0x1p_53
 
 // Original contains some macro definitions
 
@@ -272,27 +273,23 @@ Notes:
 // }
 //------------------
 
-static inline uint32_t RotL_32(uint32_t x, unsigned int N)
+static inline uint64_t RotL_64(uint64_t x, unsigned int N)
 {
-    return (x << (N & 31)) | (x >> ((32-N) & 31));
+    return (x << (N & 63)) | (x >> ((64-N) & 63));
 }
 
 // Rotation constants:
-enum r123_enum_threefry32x4 {
-    // Output from skein_rot_search: (srs-B128-X5000.out)
-    // Random seed = 1. BlockSize = 64 bits. sampleCnt =  1024. rounds =  8, minHW_or=28
-    // Start: Mon Aug 24 22:41:36 2009
-    // ...
-    // rMin = 0.472. #0A4B[*33] [CRC=DD1ECE0F. hw_OR=31. cnt=16384. blkSize= 128].format 
-    R_32x4_0_0=10, R_32x4_0_1=26,
-    R_32x4_1_0=11, R_32x4_1_1=21,
-    R_32x4_2_0=13, R_32x4_2_1=27,
-    R_32x4_3_0=23, R_32x4_3_1= 5,
-    R_32x4_4_0= 6, R_32x4_4_1=20,
-    R_32x4_5_0=17, R_32x4_5_1=11,
-    R_32x4_6_0=25, R_32x4_6_1=10,
-    R_32x4_7_0=18, R_32x4_7_1=20
-
+enum r123_enum_threefry64x4 {
+    /* These are the R_256 constants from the Threefish reference sources
+       with names changed to R_64x4... */
+    R_64x4_0_0=14, R_64x4_0_1=16,
+    R_64x4_1_0=52, R_64x4_1_1=57,
+    R_64x4_2_0=23, R_64x4_2_1=40,
+    R_64x4_3_0= 5, R_64x4_3_1=37,
+    R_64x4_4_0=25, R_64x4_4_1=33,
+    R_64x4_5_0=46, R_64x4_5_1=12,
+    R_64x4_6_0=58, R_64x4_6_1=22,
+    R_64x4_7_0=32, R_64x4_7_1=32
 };
 
 enum r123_enum_threefry_wcnt {
@@ -326,32 +323,34 @@ int v123_get_vec_sizes() {
 // Threefry functions
 //=========================================================================================================
 
-// Note: These may be renamed in future - eg. v123_threefry4x32b_ss_fix
+// Note: These may be renamed in future - eg. v123_threefry4x64b_ss_fix 
 
-// Single stream version (with constant number of sets - NUM_VALS_32): 
+//- the f/f8 thing - i'm doing all 64bit versions using 64-bit ints as input ints...
+
+// Single stream version (with constant number of sets - NUM_VALS_64): 
 // Provide one ctr-set and one key-set like scalar version. ctr1 is incremented
 // across vector dimesion with supplied increment.
 // An increment of 1 is as good as any for quality of random numbers
 // Values 2/3/4 of each ctr/key set are replicated across vector dimension.
 // An array of (IN_NUM_VALS*4) random number are returned.
-int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT, double* buff) {
+int threefry4x64f_multi_ss_fix(unsigned long long int* CTR4,unsigned long long int* KEY4, int INCREMENT, double* buff) {
   
     int ivec;    
     int ictr;  // For iteration over ctk/keys 1,2,3,4
     
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks[4+1]; //Assuming one set of keys
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t ks[4+1]; //Assuming one set of keys
               
     //Use 1D arrays for aligned accesses when supply vector size
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X0[NUM_VALS_32];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X1[NUM_VALS_32];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X2[NUM_VALS_32];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X3[NUM_VALS_32];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X0[NUM_VALS_64];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X1[NUM_VALS_64];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X2[NUM_VALS_64];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X3[NUM_VALS_64];
     
-    ks[4] =  SKEIN_KS_PARITY32;
+    ks[4] =  SKEIN_KS_PARITY64;
 
     //Assumes only first counter varies
 
-    for (ivec=0;ivec <NUM_VALS_32 ; ivec++) {
+    for (ivec=0;ivec <NUM_VALS_64 ; ivec++) {
       X0[ivec]  = CTR4[0] + INCREMENT*ivec; // increment counter
       X1[ivec]  = CTR4[1];
       X2[ivec]  = CTR4[2];
@@ -367,90 +366,90 @@ int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREM
 
     //loop over vector length
     #pragma omp simd aligned(X0,X1,X2,X3,ks)
-    for (ivec=0;ivec < NUM_VALS_32; ivec++) {
+    for (ivec=0;ivec < NUM_VALS_64; ivec++) {
 
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3];
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_0_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_0_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_0_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_0_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_1_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_1_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_1_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_1_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_2_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_2_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_2_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_2_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_3_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_3_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_3_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_3_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=1) */                                            
       X0[ivec] += ks[1]; X1[ivec] += ks[2]; X2[ivec] += ks[3]; X3[ivec] += ks[4]; 
       X3[ivec] += 1;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_4_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_4_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_4_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_4_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_5_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_5_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_5_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_5_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_6_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_6_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_6_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_6_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_7_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_7_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_7_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_7_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=2) */                                            
       X0[ivec] += ks[2]; X1[ivec] += ks[3]; X2[ivec] += ks[4]; X3[ivec] += ks[0]; 
       X3[ivec] += 2;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_0_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_0_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_0_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_0_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_1_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_1_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_1_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_1_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_2_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_2_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_2_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_2_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_3_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_3_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_3_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_3_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=3) */                                            
       X0[ivec] += ks[3]; X1[ivec] += ks[4]; X2[ivec] += ks[0]; X3[ivec] += ks[1]; 
       X3[ivec] += 3;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_4_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_4_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_4_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_4_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_5_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_5_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_5_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_5_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_6_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_6_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_6_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_6_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_7_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_7_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_7_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_7_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=1) */                                            
       X0[ivec] += ks[4]; X1[ivec] += ks[0]; X2[ivec] += ks[1]; X3[ivec] += ks[2]; 
       X3[ivec] += 4;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_0_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_0_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_0_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_0_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_1_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_1_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_1_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_1_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_2_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_2_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_2_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_2_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_3_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_3_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_3_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_3_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=1) */                                            
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3]; 
@@ -459,25 +458,25 @@ int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREM
     }
 
     //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
-    //u01_closed_open_32_53
+    //u01_closed_open_64_53
 
     //Want buff aligned also
     #pragma omp simd aligned(X0,X1,X2,X3)         
-    for (ivec=0;ivec < NUM_VALS_32; ivec++) {
+    for (ivec=0;ivec < NUM_VALS_64; ivec++) {
 
 #ifdef VECTOR_ORDER      
       //Vector order - in stride
-      buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_64*0 + ivec] = (X0[ivec]>>11)*R123_0x1p_53;
+      buff[NUM_VALS_64*1 + ivec] = (X1[ivec]>>11)*R123_0x1p_53;
+      buff[NUM_VALS_64*2 + ivec] = (X2[ivec]>>11)*R123_0x1p_53;
+      buff[NUM_VALS_64*3 + ivec] = (X3[ivec]>>11)*R123_0x1p_53;
 #else      
       //Set order - Stride one over sets - as if multiple scalar calls
       //Vector dimension out of stride
-      buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
-      buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
-      buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
-      buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
+      buff[ivec*4+0] = (X0[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*4+1] = (X1[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*4+2] = (X2[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*4+3] = (X3[ivec]>>11)*R123_0x1p_53;
 #endif
 
     }
@@ -495,20 +494,20 @@ int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREM
 // An increment of 1 is as good as any for quality of random numbers
 // Values 2/3/4 of each ctr/key set are replicated across vector dimension.
 // An array of (IN_NUM_VALS*4) random number are returned.
-int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT, double* buff, const int IN_NUM_VALS) {
+int threefry4x64f_multi_ss(unsigned long long int* CTR4, unsigned long long int* KEY4, int INCREMENT, double* buff, const int IN_NUM_VALS) {
   
     int ivec;    
     int ictr;  // For iteration over ctk/keys 1,2,3,4
     
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks[4+1]; //Assuming one set of keys
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t ks[4+1]; //Assuming one set of keys
               
     //Use 1D arrays for aligned accesses when supply vector size
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X0[IN_NUM_VALS];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X1[IN_NUM_VALS];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X2[IN_NUM_VALS];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X3[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X0[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X1[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X2[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X3[IN_NUM_VALS];
     
-    ks[4] =  SKEIN_KS_PARITY32;
+    ks[4] =  SKEIN_KS_PARITY64;
 
     //Assumes only first counter varies
 
@@ -533,85 +532,85 @@ int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT,
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3];
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_0_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_0_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_0_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_0_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_1_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_1_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_1_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_1_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_2_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_2_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_2_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_2_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_3_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_3_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_3_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_3_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=1) */                                            
       X0[ivec] += ks[1]; X1[ivec] += ks[2]; X2[ivec] += ks[3]; X3[ivec] += ks[4]; 
       X3[ivec] += 1;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_4_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_4_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_4_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_4_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_5_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_5_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_5_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_5_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_6_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_6_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_6_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_6_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_7_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_7_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_7_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_7_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=2) */                                            
       X0[ivec] += ks[2]; X1[ivec] += ks[3]; X2[ivec] += ks[4]; X3[ivec] += ks[0]; 
       X3[ivec] += 2;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_0_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_0_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_0_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_0_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_1_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_1_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_1_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_1_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_2_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_2_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_2_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_2_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_3_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_3_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_3_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_3_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=3) */                                            
       X0[ivec] += ks[3]; X1[ivec] += ks[4]; X2[ivec] += ks[0]; X3[ivec] += ks[1]; 
       X3[ivec] += 3;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_4_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_4_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_4_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_4_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_5_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_5_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_5_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_5_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_6_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_6_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_6_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_6_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_7_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_7_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_7_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_7_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=1) */                                            
       X0[ivec] += ks[4]; X1[ivec] += ks[0]; X2[ivec] += ks[1]; X3[ivec] += ks[2]; 
       X3[ivec] += 4;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_0_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_0_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_0_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_0_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_1_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_1_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_1_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_1_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_2_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_2_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_2_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_2_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_3_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_3_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_3_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_3_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=1) */                                            
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3]; 
@@ -620,7 +619,7 @@ int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT,
     }
 
     //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
-    //u01_closed_open_32_53
+    //u01_closed_open_64_53
 
     //Want buff aligned also
     #pragma omp simd aligned(X0,X1,X2,X3)         
@@ -628,17 +627,17 @@ int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT,
 
 #ifdef VECTOR_ORDER      
       //Vector order - in stride
-      buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_64*0 + ivec] = (X0[ivec]>>11)*R123_0x1p_53;
+      buff[NUM_VALS_64*1 + ivec] = (X1[ivec]>>11)*R123_0x1p_53;
+      buff[NUM_VALS_64*2 + ivec] = (X2[ivec]>>11)*R123_0x1p_53;
+      buff[NUM_VALS_64*3 + ivec] = (X3[ivec]>>11)*R123_0x1p_53;
 #else      
       //Set order - Stride one over sets - as if multiple scalar calls
       //Vector dimension out of stride
-      buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
-      buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
-      buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
-      buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
+      buff[ivec*4+0] = (X0[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*4+1] = (X1[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*4+2] = (X2[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*4+3] = (X3[ivec]>>11)*R123_0x1p_53;
 #endif
 
     }
@@ -652,26 +651,26 @@ int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT,
 // Interface 
 // All = Supply all counters/keys
 // An array of (IN_NUM_VALS*4) random number are returned.
-int threefry4x32f_multi_ctrkey_all(unsigned int* CTR1,unsigned int* CTR2,unsigned int* CTR3,unsigned int* CTR4,  
-                                   unsigned int* KEY1,unsigned int* KEY2,unsigned int* KEY3,unsigned int* KEY4, 
+int threefry4x64f_multi_ctrkey_all(unsigned long long int* CTR1,unsigned long long int* CTR2,unsigned long long int* CTR3,unsigned long long int* CTR4,  
+                                   unsigned long long int* KEY1,unsigned long long int* KEY2,unsigned long long int* KEY3,unsigned long long int* KEY4, 
                                    double* buff, const int IN_NUM_VALS) {
   
     int ivec;  // For iteration over vector dimesion
     //int ictr;  // For iteration over ctk/keys 1,2,3,4
           
     //Use 1D arrays for aligned accesses when supply vector size
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks0[IN_NUM_VALS];    
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks1[IN_NUM_VALS];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks2[IN_NUM_VALS];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks3[IN_NUM_VALS];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks4[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t ks0[IN_NUM_VALS];    
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t ks1[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t ks2[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t ks3[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t ks4[IN_NUM_VALS];
 
               
     //Use 1D arrays for aligned accesses when supply vector size
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X0[IN_NUM_VALS];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X1[IN_NUM_VALS];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X2[IN_NUM_VALS];
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X3[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X0[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X1[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X2[IN_NUM_VALS];
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint64_t X3[IN_NUM_VALS];
 
 
     //__attribute__((aligned(VECTOR_LENGTH_BYTES))) double buff[IN_NUM_VALS*4];
@@ -682,7 +681,7 @@ int threefry4x32f_multi_ctrkey_all(unsigned int* CTR1,unsigned int* CTR2,unsigne
       X1[ivec]  = CTR2[ivec];
       X2[ivec]  = CTR3[ivec];
       X3[ivec]  = CTR4[ivec];       
-      ks4[ivec] =  SKEIN_KS_PARITY32;                          
+      ks4[ivec] =  SKEIN_KS_PARITY64;                          
     }
 
 
@@ -708,85 +707,85 @@ int threefry4x32f_multi_ctrkey_all(unsigned int* CTR1,unsigned int* CTR2,unsigne
       X0[ivec] += ks0[ivec]; X1[ivec] += ks1[ivec]; X2[ivec] += ks2[ivec]; X3[ivec] += ks3[ivec];
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_0_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_0_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_0_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_0_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_1_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_1_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_1_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_1_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_2_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_2_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_2_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_2_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_3_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_3_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_3_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_3_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=1) */                                            
       X0[ivec] += ks1[ivec]; X1[ivec] += ks2[ivec]; X2[ivec] += ks3[ivec]; X3[ivec] += ks4[ivec]; 
       X3[ivec] += 1;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_4_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_4_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_4_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_4_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_5_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_5_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_5_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_5_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_6_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_6_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_6_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_6_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_7_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_7_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_7_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_7_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=2) */                                            
       X0[ivec] += ks2[ivec]; X1[ivec] += ks3[ivec]; X2[ivec] += ks4[ivec]; X3[ivec] += ks0[ivec]; 
       X3[ivec] += 2;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_0_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_0_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_0_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_0_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_1_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_1_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_1_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_1_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_2_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_2_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_2_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_2_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_3_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_3_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_3_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_3_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=3) */                                            
       X0[ivec] += ks3[ivec]; X1[ivec] += ks4[ivec]; X2[ivec] += ks0[ivec]; X3[ivec] += ks1[ivec]; 
       X3[ivec] += 3;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_4_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_4_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_4_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_4_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_5_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_5_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_5_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_5_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_6_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_6_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_6_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_6_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_7_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_7_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_7_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_7_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=1) */                                            
       X0[ivec] += ks4[ivec]; X1[ivec] += ks0[ivec]; X2[ivec] += ks1[ivec]; X3[ivec] += ks2[ivec]; 
       X3[ivec] += 4;     /* X[WCNT4-1] += r  */                 
 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_0_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_0_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_0_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_0_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_1_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_1_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_1_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_1_1); X1[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_2_0); X1[ivec] ^= X0[ivec]; 
-      X2[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_2_1); X3[ivec] ^= X2[ivec]; 
+      X0[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_2_0); X1[ivec] ^= X0[ivec]; 
+      X2[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_2_1); X3[ivec] ^= X2[ivec]; 
 
-      X0[ivec] += X3[ivec]; X3[ivec] = RotL_32(X3[ivec],R_32x4_3_0); X3[ivec] ^= X0[ivec]; 
-      X2[ivec] += X1[ivec]; X1[ivec] = RotL_32(X1[ivec],R_32x4_3_1); X1[ivec] ^= X2[ivec]; 
+      X0[ivec] += X3[ivec]; X3[ivec] = RotL_64(X3[ivec],R_64x4_3_0); X3[ivec] ^= X0[ivec]; 
+      X2[ivec] += X1[ivec]; X1[ivec] = RotL_64(X1[ivec],R_64x4_3_1); X1[ivec] ^= X2[ivec]; 
 
       /* InjectKey(r=1) */                                            
       X0[ivec] += ks0[ivec]; X1[ivec] += ks1[ivec]; X2[ivec] += ks2[ivec]; X3[ivec] += ks3[ivec]; 
@@ -796,25 +795,25 @@ int threefry4x32f_multi_ctrkey_all(unsigned int* CTR1,unsigned int* CTR2,unsigne
 
 
     //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
-    //u01_closed_open_32_53
+    //u01_closed_open_64_53
 
     //Want buff aligned also
     #pragma omp simd aligned(X0,X1,X2,X3)         
     for (ivec=0;ivec < IN_NUM_VALS; ivec++) {
-    
+
 #ifdef VECTOR_ORDER      
       //Vector order - in stride
-      buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32;
+      buff[NUM_VALS_64*0 + ivec] = (X0[ivec]>>11)*R123_0x1p_53;
+      buff[NUM_VALS_64*1 + ivec] = (X1[ivec]>>11)*R123_0x1p_53;
+      buff[NUM_VALS_64*2 + ivec] = (X2[ivec]>>11)*R123_0x1p_53;
+      buff[NUM_VALS_64*3 + ivec] = (X3[ivec]>>11)*R123_0x1p_53;
 #else      
       //Set order - Stride one over sets - as if multiple scalar calls
       //Vector dimension out of stride
-      buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
-      buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
-      buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
-      buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
+      buff[ivec*4+0] = (X0[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*4+1] = (X1[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*4+2] = (X2[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*4+3] = (X3[ivec]>>11)*R123_0x1p_53;
 #endif
 
     }

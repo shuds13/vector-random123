@@ -1,5 +1,8 @@
 //--------------------------------------------------------------------------------------------------
-// S. Hudson: Vector123 loop only test
+// S. Hudson: Vector123 loop-only test
+//            Apply vectorizable threefry4x32 to generate large array of random integers
+//            Aims to test performance of pure conversion loop - scalar v vectorized
+//            Standard source code version.
 //--------------------------------------------------------------------------------------------------
 
 /*
@@ -64,6 +67,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define R123_0x1p_32                (1./4294967296.)   // for 32_53 CO,OC,OO int4 to d.p
 
 
+static inline uint64_t rdtsc(){
+  unsigned int lo,hi;
+  __asm__ __volatile__ ("rdtsc" : "=a" (lo) "=d" (hi));
+  return ((uint64_t)hi << 32) | lo;
+}
+
+
 static inline uint32_t RotL_32(uint32_t x, unsigned int N)
 {
     return (x << (N & 31)) | (x >> ((32-N) & 31));
@@ -100,6 +110,7 @@ int main (void)
     //clock - cpu timing
     clock_t start, diff;
     int msec;
+    uint64_t rdtsc_count1, rdtsc_count2;
 
     //gettimeofday - wall clock timing
     struct timeval  tv1, tv2;
@@ -155,6 +166,7 @@ int main (void)
    
     start = clock();
     gettimeofday(&tv1, NULL);
+    rdtsc_count1 = rdtsc();
 
     //loop over vector length
     #pragma omp simd aligned(X0,X1,X2,X3,ks)         
@@ -257,8 +269,13 @@ int main (void)
 
     }
 
+    rdtsc_count2 = rdtsc();
+
     diff = clock() - start;
     gettimeofday(&tv2, NULL);
+    
+    printf("Num sets: %d   Tot. num randoms: %d\n",NUM_VALS_32,NUM_VALS_32*4);    
+    printf("cycles: %llu\n",rdtsc_count2 - rdtsc_count1);
 
     msec = diff * 1000 / CLOCKS_PER_SEC;
 //    printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
@@ -270,7 +287,7 @@ int main (void)
     
     printf("X0[100]  = %u\n",X0[100]);
     printf("X3[1000] = %u\n",X3[1000]);
-    printf("\nX2[NUM_VALS_32-1] = %u\n\n",X2[NUM_VALS_32-1]);
+    printf("X2[NUM_VALS_32-1] = %u\n\n",X2[NUM_VALS_32-1]);
         
     free(X0);
     free(X1);

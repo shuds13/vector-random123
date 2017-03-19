@@ -1,5 +1,9 @@
 //--------------------------------------------------------------------------------------------------
-// S. Hudson: Vector123 loop only test
+// S. Hudson: Vector123 loop-only test - using AVX512 instrinsics
+//            Apply vectorizable threefry4x32 to generate large array of random doubles between 0 and 1
+//            Aims to test performance of pure conversion loop - scalar v vectorized
+//            Number of values produced is 4*NUM_VALS_32
+//            AVX512 vector intrinsics version.
 //--------------------------------------------------------------------------------------------------
 
 /*
@@ -58,15 +62,33 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NUM_VALS_64 8000000
 
 #define SKEIN_MK_64(hi32,lo32)  ((lo32) + (((uint64_t) (hi32)) << 32))
-#define SKEIN_KS_PARITY64         SKEIN_MK_64(0x1BD11BDA,0xA9FC1A22)
-#define SKEIN_KS_PARITY32         0x1BD11BDA
+#define SKEIN_KS_PARITY64       SKEIN_MK_64(0x1BD11BDA,0xA9FC1A22)
+#define SKEIN_KS_PARITY32       0x1BD11BDA
 
-#define R123_0x1p_32                (1./4294967296.)   // for 32_53 CO,OC,OO int4 to d.p
+//#define R123_0x1p_32            (1./4294967296.)   // for 32_53 CO,OC,OO int4 to d.p
 
+//*
+//Generate vector rol instruction - fast
 #define halfround(X,Y,ROL_VAL) \
       X = _mm512_add_epi32(X, Y); \
       Y = _mm512_rol_epi32(Y, ROL_VAL); \
       Y = _mm512_xor_epi32(Y, X);
+//*/
+
+/*
+//Use a composed rol - slow
+#define halfround(X,Y,ROL_VAL) \
+      X = _mm512_add_epi32(X, Y); \
+      Y = _mm512_myrol_epi32(Y, ROL_VAL); \
+      Y = _mm512_xor_epi32(Y, X);
+//*/
+
+
+static inline uint64_t rdtsc(){
+  unsigned int lo,hi;
+  __asm__ __volatile__ ("rdtsc" : "=a" (lo) "=d" (hi));
+  return ((uint64_t)hi << 32) | lo;
+}
 
 
 static inline uint32_t RotL_32(uint32_t x, unsigned int N)
@@ -110,20 +132,22 @@ enum r123_enum_threefry32x4 {
 int main (void)
 {
 
+    const float R123_0x1p_32 = 1./4294967296.;
+
     int ivec;    
     int ictr;  // For iteration over ctk/keys 1,2,3,4
     
     //clock - cpu timing
     clock_t start, diff;
     int msec;
+    uint64_t rdtsc_count1, rdtsc_count2;
 
     //gettimeofday - wall clock timing
     struct timeval  tv1, tv2;
     
     //*check using omp to tell compiler can assume aligned on the loop
-    // so really want to use omp to force alignement on declaration
-    
-    
+    // so really want to use omp to force alignment on declaration
+        
     //uint32_t ks[4+1]; //Assuming one set of keys
      //   __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks[4+1];
      __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks0;
@@ -131,8 +155,6 @@ int main (void)
      __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks2;
      __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks3;
      __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks4;
-
-
 
     //Use 1D arrays for aligned accesses when supply vector size
     //__attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X0[NUM_VALS_32];
@@ -144,13 +166,23 @@ int main (void)
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X1;
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X2;
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X3;
+
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff0;
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff1;
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff2;
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff3;
     
+
     X0 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     X1 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     X2 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     X3 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     
-    
+    buff0 = (float*)malloc(NUM_VALS_32 * sizeof(float));
+    buff1 = (float*)malloc(NUM_VALS_32 * sizeof(float));
+    buff2 = (float*)malloc(NUM_VALS_32 * sizeof(float));
+    buff3 = (float*)malloc(NUM_VALS_32 * sizeof(float));
+        
     //start = clock();
     //gettimeofday(&tv1, NULL);
     
@@ -188,6 +220,7 @@ int main (void)
 
     start = clock();
     gettimeofday(&tv1, NULL);
+    rdtsc_count1 = rdtsc();
 
     //Ok so if use intrinsics need sep vector length from num vals
     
@@ -340,15 +373,60 @@ int main (void)
       //-----------------------------------------------------
 
 //Store X values
-      _mm512_store_epi32(&X0[ivec],tempX0);
-      _mm512_store_epi32(&X1[ivec],tempX1);
-      _mm512_store_epi32(&X2[ivec],tempX2);
-      _mm512_store_epi32(&X3[ivec],tempX3);
+//       _mm512_store_epi32(&X0[ivec],tempX0);
+//       _mm512_store_epi32(&X1[ivec],tempX1);
+//       _mm512_store_epi32(&X2[ivec],tempX2);
+//       _mm512_store_epi32(&X3[ivec],tempX3);
+      
+      
+//       __m512d temp_buff0 = _mm512_castsi512_pd(tempX0);
+//       __m512d temp_buff1 = _mm512_castsi512_pd(tempX1);
+//       __m512d temp_buff2 = _mm512_castsi512_pd(tempX2);
+//       __m512d temp_buff3 = _mm512_castsi512_pd(tempX3);
 
+//convert 32-bit int to double - expensive when going from 32 to 64 length - will be splitting
+//still wont work - right! need double size somehow.
+//ok need to start from a 256bit value! And then do eight of these - for later....
+
+//to double
+//       __m512d temp_buff0 = _mm512_cvtepu32_pd(tempX0);
+//       __m512d temp_buff1 = _mm512_cvtepu32_pd(tempX1);
+//       __m512d temp_buff2 = _mm512_cvtepu32_pd(tempX2);
+//       __m512d temp_buff3 = _mm512_cvtepu32_pd(tempX3);
+
+//to float
+      __m512 temp_buff0 = _mm512_cvtepu32_ps(tempX0);
+      __m512 temp_buff1 = _mm512_cvtepu32_ps(tempX1);
+      __m512 temp_buff2 = _mm512_cvtepu32_ps(tempX2);
+      __m512 temp_buff3 = _mm512_cvtepu32_ps(tempX3);
+      
+      
+      //Should check my intrinsics above - whether all unsigned... some maybe signed
+      //results seem ok. but...
+      
+      //Loading constant into vector register - can be done once!***************
+      __m512 temp_vec_0x1p_32 = _mm512_set1_ps(R123_0x1p_32);
+      
+      temp_buff0 = __mm512_mul_ps(temp_buff0,temp_vec_0x1p_32);
+      temp_buff1 = __mm512_mul_ps(temp_buff1,temp_vec_0x1p_32);
+      temp_buff2 = __mm512_mul_ps(temp_buff2,temp_vec_0x1p_32);
+      temp_buff3 = __mm512_mul_ps(temp_buff3,temp_vec_0x1p_32);
+      
+
+//Store doubles in buff     
+      _mm512_store_ps(&buff0[ivec],temp_buff0);
+      _mm512_store_ps(&buff1[ivec],temp_buff1);
+      _mm512_store_ps(&buff2[ivec],temp_buff2);
+      _mm512_store_ps(&buff3[ivec],temp_buff3);
+     
     }
+
+    rdtsc_count2 = rdtsc();
 
     diff = clock() - start;
     gettimeofday(&tv2, NULL);
+    
+    printf("cycles: %llu\n",rdtsc_count2 - rdtsc_count1);
 
     msec = diff * 1000 / CLOCKS_PER_SEC;
 //    printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
@@ -358,14 +436,23 @@ int main (void)
          (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
          (double) (tv2.tv_sec - tv1.tv_sec));
     
-    printf("X0[100]  = %u\n",X0[100]);
-    printf("X3[1000] = %u\n",X3[1000]);
-    printf("\nX2[NUM_VALS_32-1] = %u\n\n",X2[NUM_VALS_32-1]);
+    printf ("Time taken (Wall) = %f seconds\n",
+         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+         (double) (tv2.tv_sec - tv1.tv_sec));
+    
+    printf("buff0[100]  = %f\n",buff0[100]);
+    printf("buff0[1000] = %f\n",buff0[1000]);
+    printf("\nbuff3[NUM_VALS_32-1] = %f\n\n",buff3[NUM_VALS_32-1]);
         
     free(X0);
     free(X1);
     free(X2);
     free(X3);
+
+    free(buff0);    
+    free(buff1);    
+    free(buff2);    
+    free(buff3);    
     
 
     return 0; 

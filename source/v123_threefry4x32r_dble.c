@@ -1,6 +1,6 @@
 //--------------------------------------------------------------------------------------------------
-// S. Hudson: Vector123
-// Standard C vectorizable implementation of Random123 functions.
+// S. Hudson: Vector_Random123: threefry4x32
+// Standard C vectorizable implementation of Random123 threefry4x32 functions.
 // Based on Random123 functions - see copyright notice.
 //--------------------------------------------------------------------------------------------------
 
@@ -36,18 +36,179 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-//--------------------------------------------------------------------------------------------------
-// S. Hudson: Standalone version - threefry vectorised.
-//--------------------------------------------------------------------------------------------------
-// At time of writing - restricted interface/options - this is not a full random123 port.
-// Alternative is to use this with Random123 library and will pick up the compiler feature files etc.
-// which sets some macros  (eg.directives for inlining)
-// eg #define R123_FORCE_INLINE(decl) decl __attribute__((__always_inline__))
-// Also if use threefry.h  - comment out section indicated below as will pick up from there.
-// -> so far I've found makes no difference on platforms tested for threefry.
-// Not tried this on CUDA platforms..
-//--------------------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------------------
+// S. Hudson: Standalone version - This file should work standalone by incorporating into code as is.
+//                                 See "Notes" for picking up random123 configuration settings.
+//---------------------------------------------------------------------------------------------------
 
+/*
+
+Overview:
+
+  Below is a list of available routines which implement by default 20 rounds of threefry4x32. Instead of a single
+  set of 4 values, there routines produce multiple sets as described below. The variants allow for simplified
+  interfaces for single streams (ss).
+
+  threefry4x32f_multi_ss_fix:     Single stream version using vector/array length specified in this file (NUM_VALS_32)
+  threefry4x32f_multi_ss:         Single stream version using provided vector/array length
+  threefry4x32f_multi_ctrkey_all: Multi-stream version - user supplies explicit counters/keys for all RNs (Random Numbers).
+
+  Utility Routines
+  v123_get_vec_sizes:             Returns parameter/macro values for vector and array sizes
+                                  VECTOR_LENGTH_BYTES / NUM_VALS_32 / NUM_VALS_64
+  
+  --------------------------------------------------------------------------------------------------------------------------------
+  
+  Original scalar code: 
+  
+  For comparison, the original threefry4x32 code passes one set of counters (as array) and one set of
+  keys (as array) and produce one set of RNs.
+  (ctr1, ctr2, ctr3, ctr4) and (key1, key2, key3, key4) - produces (ran1, ran2, ran3, ran4)
+
+  --------------------------------------------------------------------------------------------------------------------------------
+  
+  Vector code:
+
+  Single stream variants:
+  threefry4x32f_multi_ss_fix and threefry4x32f_multi_ss:
+         
+  Input: Pass one set of counters (as array) and one set of keys (as array) as with scalar code.
+  CTR4 = (ctr1, ctr2, ctr3, ctr4) and KEY4 = (key1, key2, key3, key4)
+  
+  Further sets are generated as below - given a supplied increment of 1
+
+  Array length = 8 ---------------> 
+                  
+   0       1      2       3       4       5       6       7     
+  ctr1   ctr1+1  ctr1+2  ctr1+3  ctr1+4  ctr1+5  ctr1+6  ctr1+7  
+  ctr2   ctr2    ctr2    ctr2    ctr2    ctr2    ctr2    ctr2  
+  ctr3   ctr3    ctr3    ctr3    ctr3    ctr3    ctr3    ctr3  
+  ctr4   ctr4    ctr4    ctr4    ctr4    ctr4    ctr4    ctr4  
+  
+  Note: Only one ctr value need be changed per set to produce four different RNs as output.
+
+  In this version, the code returns four vectors of random numbers corresponding to the array length above.
+  E.g. Array length = 8 (32 RNs will be produced)
+  Returned arrays:
+  RAN1 = (ran1(0), ran1(1), ran1(2), ran1(3), ran1(4), ran1(5), ran1(6), ran1(7))
+  RAN2 = (ran2(0), ran2(1), ran2(2), ran2(3), ran2(4), ran2(5), ran2(6), ran2(7))
+  RAN3 = (ran3(0), ran3(1), ran3(2), ran3(3), ran3(4), ran3(5), ran3(6), ran3(7))
+  RAN4 = (ran4(0), ran4(1), ran4(2), ran4(3), ran4(4), ran4(5), ran4(6), ran4(7))
+  
+  The array size can be anything, but the machine vector length or a multiple thereof is preferable for performance.
+  
+  For threefry4x32f_multi_ss_fix, the array size is set in this file (NUM_VALS_32) which is either a specified
+  default or, if a vector instruction set is recognised at compilation by the listed predefined macros, it is set to
+  the machine vector length. This must, of course, be consistent with calling code. See NUM_VALS_32 below. Note that
+  this constant is not used by the other routines which take the array length as an argument.
+
+
+  threefry4x32f_multi_ctrkey_all:
+  The routine threefry4x32f_multi_ctrkey_all enables the user to supply any permutation of input counters and keys.
+  The array arguments supplied for counter and keys are of array/vector length with a seperate array argument for each
+  counter/key.
+  
+  CTR1 = (ctr1_v0, ctr1_v1, ctr1_v2, ctr1_v3, ctr1_v4, ctr1_v5, ctr1_v6, ctr1_v7 ...)
+  CTR2 = (ctr2_v0, ctr2_v1, ctr2_v2, ctr2_v3, ctr2_v4, ctr2_v5, ctr2_v6, ctr2_v7 ...)
+  etc...
+  
+  --------------------------------------------------------------------------------------------------------------------------------
+
+
+Notes:
+
+  This file should work standalone by incorporating into code as is.
+  Alternatively, Random123 include files (threefry.h) can be used
+  and will pick up the compiler feature files etc.
+  which sets some macros  (eg.directives for inlining)
+  eg #define R123_FORCE_INLINE(decl) decl __attribute__((__always_inline__))
+  Also if use threefry.h  - comment out section indicated below to avoid duplicate definitions
+  -> so far no difference has been found on platforms tested
+  Not tried this on CUDA platforms..
+
+  By default these routines produce RNs which are doubles uniformly distributed between 0 and 1 inclusive/exlusive.
+  Alternative conversions can be found in Random123 header files u01.h (up to 1.08) or u01fixedpt.h
+
+  *Alternative routines exist which produces a single buffer of RNs as output. 
+  
+  The current code is laid out for clarity and ease of debugging/profiling - rather than minimal code size or coverage
+  of all possible variations. The code can easily be modified for variants as desired.
+  
+  OpenMP pragmas: It is not essential to enable OpenMP and there is no threading inside this routine. However,
+  the OpenMP pragmas help to ensure loops are vectorized.
+
+*/
+
+
+// ------------------------------------------------------------------------------------------------/
+// ------------- Automatic determination of vector length for threefry4x32f_multi_ss_fix ----------/
+// ------------------------------------------------------------------------------------------------/
+
+// The macro VECTOR_LENGTH_BYTES is used for alignment of arrays in all routines (on supported platforms).
+// This should be at least the machine vector length in bytes.
+
+// NUM_VALS_32 is used only in routines with the _fix suffix (which refers to a fixed array size). This is actually
+// the number of sets of values (see above).
+
+// For supported platforms the conditional preprocessor code below will set these macros to architecture vector lengths.
+// These can be overidden here by the user. 
+
+// Generally I dont think should matter if too big - as long as fits with calling routines and multiple of correct size.
+// VECTOR_LENGTH_BYTES // For alignment if using - should not matter if too big (avx256=32 avx512=64) 
+// NUM_VALS_32         // Number of R123 sets of 32-bit values. Should be  vector length (or multiple of) - LOOP SIZE
+// NUM_VALS_64         // Number of R123 sets of 64-bit values. Should be  vector length (or multiple of) - LOOP SIZE
+
+
+// Enable/disable auto-selection
+#define AUTO_SELECT 0
+//#define AUTO_SELECT 1
+
+// ----------------------------------------------------------
+// Set values for supported platforms (*may move to sep. header file - shared by diff generators)
+// Initially this is focussed on intel platforms - for others it is recommended to set manually
+#if AUTO_SELECT
+
+// AVX macros etc.. are defined in many non-intel compilers also (including gcc) - so do not specify __ICC here.
+//#if defined(__ICC)
+
+#if   defined(__AVX512F__)
+#define VECTOR_LENGTH_BYTES 64
+#define NUM_VALS_32 16
+#define NUM_VALS_64 8
+#elif   defined(__AVX2__)
+#define VECTOR_LENGTH_BYTES 32
+#define NUM_VALS_32 8
+#define NUM_VALS_64 4
+#elif   defined(__AVX__)
+#define VECTOR_LENGTH_BYTES 32
+#define NUM_VALS_32 4 //AVX1 - integers limited to AVX-128
+#define NUM_VALS_64 2
+#elif   defined(__SSE__)
+#define VECTOR_LENGTH_BYTES 32
+#define NUM_VALS_32 4
+#define NUM_VALS_64 2
+#else
+//ICC DEFAULTS
+#define VECTOR_LENGTH_BYTES 64
+#define NUM_VALS_32 8
+#define NUM_VALS_64 4
+#endif
+
+//#endif // (__ICC)
+
+#else // If not using AUTO_SELECT
+//DEFAULTS
+#define VECTOR_LENGTH_BYTES 64
+#define NUM_VALS_32 16
+#define NUM_VALS_64 8
+
+#endif //AUTO_SELECT
+// ----------------------------------------------------------
+
+
+// ------------------------------------------------------------------------------------------------/
+// ------------------------------ Include Header Files --------------------------------------------/
+// ------------------------------------------------------------------------------------------------/
 
 #include <stdio.h>
 
@@ -55,80 +216,21 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 
 
-//Random123 - To pick up macros from R123 - uncomment
+//Random123 - To pick up macros from R123 - uncomment here and comment out section below
 //#include <threefry.h>
-//#include <philox.h>
 
 //#include <u01.h>
 //OR
 //#include <u01fixedpt.h>
 
 
-//Try and automatic where can for vector length
-//Note a sep. scalar/autovec version may handle automatically -though careful that its approp for integers
-// - ie. avx1 only avx-128 for integers!! That said I guess if too long with break into two or whatever.
-
-// Generally I dont think should matter if too big - as long as fits with calling routines and multiple of correct size.
-// VECTOR_LENGTH_BYTES // For alignment if using - should not matter if too big (avx256=32 avx512=64) 
-// NUM_VALS_32         // For multi-val version - should be  vector length in words (or multiple of) - LOOP SIZE
-// NUM_VALS_64         // For multi-val version - should be  vector length in words (or multiple of) - LOOP SIZE
-
-//This works but not too helpful as has to match calling routine - unless do that same way - make same.
-// #if defined(__ICC)
-// #if   defined(__AVX512F__)
-// #define VECTOR_LENGTH_BYTES 64
-// #define NUM_VALS_32 16
-// #define NUM_VALS_64 8
-// #elif   defined(__AVX2__)
-// #define VECTOR_LENGTH_BYTES 32
-// #define NUM_VALS_32 8
-// #define NUM_VALS_64 4
-// #elif   defined(__AVX__)
-// #define VECTOR_LENGTH_BYTES 32
-// #define NUM_VALS_32 4 //AVX1 - integers limited to AVX-128
-// #define NUM_VALS_64 2
-// #elif   defined(__SSE__)
-// #define VECTOR_LENGTH_BYTES 32
-// #define NUM_VALS_32 4 //AVX1 - integers limited to AVX-128
-// #define NUM_VALS_64 2
-// #else
-// //ICC DEFAULTS
-// #define VECTOR_LENGTH_BYTES 32
-// #define NUM_VALS_32 8
-// #define NUM_VALS_64 4
-// #endif
-// #else
-// //DEFAULTS
-// #define VECTOR_LENGTH_BYTES 32
-// #define NUM_VALS_32 8
-// #define NUM_VALS_64 4
-// #endif
-
-//eg. AVX-512
-//#define VECTOR_LENGTH_BYTES 64
-//#define NUM_VALS_32 16
-//#define NUM_VALS_64 8
-
-//eg. AVX2
-// #define VECTOR_LENGTH_BYTES 32
-// #define NUM_VALS_32 8
-// #define NUM_VALS_64 4
-
-//eg. AVX/SSE - may keep length 32 for AVX1
- #define VECTOR_LENGTH_BYTES 64
-// //#define VECTOR_LENGTH_BYTES 16
- #define NUM_VALS_32 16
- #define NUM_VALS_64 8
- 
-
 // ------------------------------------------------------------------------------------------------/
 // ------------- For standalome version - comment out if using threefry.h etc ---------------------/
 // ------------------------------------------------------------------------------------------------/
 
-//If want to do a formal vectorised random123 including all options
-// the prob. more sensible to "use" than write all options out here.
-//Just I like the idea of not having to have a sub-dir - so keep this to options 
-//I'm likely to use.
+//*
+
+// Set macros for use in routines below (*may move to sep. file - shared by diff generators)
 
 #define SKEIN_MK_64(hi32,lo32)  ((lo32) + (((uint64_t) (hi32)) << 32))
 #define SKEIN_KS_PARITY64         SKEIN_MK_64(0x1BD11BDA,0xA9FC1A22)
@@ -173,18 +275,13 @@ static inline uint32_t RotL_32(uint32_t x, unsigned int N)
     return (x << (N & 31)) | (x >> ((32-N) & 31));
 }
 
-static inline uint64_t RotL_64(uint64_t x, unsigned int N)
-{
-    return (x << (N & 63)) | (x >> ((64-N) & 63));
-}
-
-/* Rotation constants: */
+// Rotation constants:
 enum r123_enum_threefry32x4 {
-    /* Output from skein_rot_search: (srs-B128-X5000.out)
+    // Output from skein_rot_search: (srs-B128-X5000.out)
     // Random seed = 1. BlockSize = 64 bits. sampleCnt =  1024. rounds =  8, minHW_or=28
     // Start: Mon Aug 24 22:41:36 2009
     // ...
-    // rMin = 0.472. #0A4B[*33] [CRC=DD1ECE0F. hw_OR=31. cnt=16384. blkSize= 128].format    */
+    // rMin = 0.472. #0A4B[*33] [CRC=DD1ECE0F. hw_OR=31. cnt=16384. blkSize= 128].format 
     R_32x4_0_0=10, R_32x4_0_1=26,
     R_32x4_1_0=11, R_32x4_1_1=21,
     R_32x4_2_0=13, R_32x4_2_1=27,
@@ -196,77 +293,26 @@ enum r123_enum_threefry32x4 {
 
 };
 
-enum r123_enum_threefry64x4 {
-    /* These are the R_256 constants from the Threefish reference sources
-       with names changed to R_64x4... */
-    R_64x4_0_0=14, R_64x4_0_1=16,
-    R_64x4_1_0=52, R_64x4_1_1=57,
-    R_64x4_2_0=23, R_64x4_2_1=40,
-    R_64x4_3_0= 5, R_64x4_3_1=37,
-    R_64x4_4_0=25, R_64x4_4_1=33,
-    R_64x4_5_0=46, R_64x4_5_1=12,
-    R_64x4_6_0=58, R_64x4_6_1=22,
-    R_64x4_7_0=32, R_64x4_7_1=32
-};
-
-enum r123_enum_threefry64x2 {
-    /*
-    // Output from skein_rot_search: (srs64_B64-X1000)
-    // Random seed = 1. BlockSize = 128 bits. sampleCnt =  1024. rounds =  8, minHW_or=57
-    // Start: Tue Mar  1 10:07:48 2011
-    // rMin = 0.136. #0325[*15] [CRC=455A682F. hw_OR=64. cnt=16384. blkSize= 128].format   
-    */
-    R_64x2_0_0=16,
-    R_64x2_1_0=42,
-    R_64x2_2_0=12,
-    R_64x2_3_0=31,
-    R_64x2_4_0=16,
-    R_64x2_5_0=32,
-    R_64x2_6_0=24,
-    R_64x2_7_0=21
-};
-
-enum r123_enum_threefry32x2 {
-    /* Output from skein_rot_search (srs32x2-X5000.out)
-    // Random seed = 1. BlockSize = 64 bits. sampleCnt =  1024. rounds =  8, minHW_or=28
-    // Start: Tue Jul 12 11:11:33 2011
-    // rMin = 0.334. #0206[*07] [CRC=1D9765C0. hw_OR=32. cnt=16384. blkSize=  64].format   */
-    R_32x2_0_0=13,
-    R_32x2_1_0=15,
-    R_32x2_2_0=26,
-    R_32x2_3_0= 6,
-    R_32x2_4_0=17,
-    R_32x2_5_0=29,
-    R_32x2_6_0=16,
-    R_32x2_7_0=24
-
-    /* 4 rounds: minHW =  4  [  4  4  4  4 ]
-    // 5 rounds: minHW =  6  [  6  8  6  8 ]
-    // 6 rounds: minHW =  9  [  9 12  9 12 ]
-    // 7 rounds: minHW = 16  [ 16 24 16 24 ]
-    // 8 rounds: minHW = 32  [ 32 32 32 32 ]
-    // 9 rounds: minHW = 32  [ 32 32 32 32 ]
-    //10 rounds: minHW = 32  [ 32 32 32 32 ]
-    //11 rounds: minHW = 32  [ 32 32 32 32 ] */
-    };
-
 enum r123_enum_threefry_wcnt {
     WCNT2=2,
     WCNT4=4
 };
 
+
+//*/
+
 // ------------------------------------------------------------------------------------------------/
 // ------------- End standalome version - comment out if using threefry.h etc ---------------------/
 // -------------------------------------------------------------------------------------------------
 
+
 //=========================================================================================================
 
 //Utility call
-int test_vec_sizes_() {
-  //Default values vector sizes NUM_VALS_32 and NUM_VALS_64
-  //In some functions these can be overwritten with provided value
-  printf("--------------------------------------------------------------------- \n");
-  printf("Default vector lengths from vector123.c: Note some routines overwrite \n");
+//Returns parameter/macro values for vector and array sizes
+//Plan to move to header file along with macro definitions
+//int test_vec_sizes_() {
+int v123_get_vec_sizes() {
   printf("VECTOR_LENGTH_BYTES %d\n",VECTOR_LENGTH_BYTES);
   printf("NUM_VALS_32 %d\n",NUM_VALS_32);
   printf("NUM_VALS_64 %d\n",NUM_VALS_64);  
@@ -275,24 +321,25 @@ int test_vec_sizes_() {
 
 
 //=========================================================================================================
-//MULTI CALL VERSIONS
+// Threefry functions
 //=========================================================================================================
 
-// ------------------------------------ threefry4x32f_multi_ss -----------------------------------------
+// Note: These may be renamed in future - eg. v123_threefry4x32r_ss_fix
 
-//extern "C"
-//1D array version - with fixed length
-int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT, double* buff) {
+// Single stream version (with constant number of sets - NUM_VALS_32): 
+// Provide one ctr-set and one key-set like scalar version. ctr1 is incremented
+// across vector dimesion with supplied increment.
+// An increment of 1 is as good as any for quality of random numbers
+// Values 2/3/4 of each ctr/key set are replicated across vector dimension.
+// Four vectors of random number are returned.
+int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT, 
+                               double* RAN1, double* RAN2, double* RAN3, double* RAN4) {
   
     int ivec;    
     int ictr;  // For iteration over ctk/keys 1,2,3,4
     
-    //uint32_t ks[4+1]; //Assuming one set of keys
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks[4+1]; //Assuming one set of keys
               
-    //uint32_t X[4][NUM_VALS_32];
-    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X[4][NUM_VALS_32];
-
     //Use 1D arrays for aligned accesses when supply vector size
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X0[NUM_VALS_32];
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X1[NUM_VALS_32];
@@ -318,7 +365,7 @@ int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREM
     }
 
     //loop over vector length
-    #pragma omp simd aligned(X0,X1,X2,X3,ks)         
+    #pragma omp simd aligned(X0,X1,X2,X3,ks)
     for (ivec=0;ivec < NUM_VALS_32; ivec++) {
 
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3];
@@ -408,29 +455,13 @@ int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREM
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3]; 
       X3[ivec] += 5;     /* X[WCNT4-1] += r  */                 
 
-    }
 
-    //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
-    //u01_closed_open_32_53
-
-    //Want buff aligned also
-    #pragma omp simd aligned(X0,X1,X2,X3)         
-    for (ivec=0;ivec < NUM_VALS_32; ivec++) {
-
-#ifdef VECTOR_ORDER      
-      //Vector order - in stride
-      buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32;
-#else      
-      //Set order - Stride one over sets - as if multiple scalar calls
-      //Vector dimension out of stride
-      buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
-      buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
-      buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
-      buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
-#endif
+      //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
+      //u01_closed_open_32_53
+      RAN1[ivec] = X0[ivec]*R123_0x1p_32;
+      RAN2[ivec] = X1[ivec]*R123_0x1p_32;
+      RAN3[ivec] = X2[ivec]*R123_0x1p_32;
+      RAN4[ivec] = X3[ivec]*R123_0x1p_32;
 
     }
     
@@ -438,18 +469,23 @@ int threefry4x32f_multi_ss_fix(unsigned int* CTR4,unsigned int* KEY4, int INCREM
     return 0; 
 }
 
-//1D array version - with provided length
-int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT, double* buff, const int IN_NUM_VALS) {
+//=========================================================================================================
+
+
+// Single stream version (with number of sets provided - IN_NUM_VALS): 
+// Provide one ctr-set and one key-set like scalar version. ctr1 is incremented
+// across vector dimesion with supplied increment.
+// An increment of 1 is as good as any for quality of random numbers
+// Values 2/3/4 of each ctr/key set are replicated across vector dimension.
+// Four vectors of random number are returned.
+int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT, 
+                           double* RAN1, double* RAN2, double* RAN3, double* RAN4, const int IN_NUM_VALS) {
   
     int ivec;    
     int ictr;  // For iteration over ctk/keys 1,2,3,4
     
-    //uint32_t ks[4+1]; //Assuming one set of keys
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks[4+1]; //Assuming one set of keys
               
-    //uint32_t X[4][IN_NUM_VALS];
-    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X[4][IN_NUM_VALS];
-
     //Use 1D arrays for aligned accesses when supply vector size
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X0[IN_NUM_VALS];
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t X1[IN_NUM_VALS];
@@ -475,7 +511,7 @@ int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT,
     }
 
     //loop over vector length
-    #pragma omp simd aligned(X0,X1,X2,X3,ks)    
+    #pragma omp simd aligned(X0,X1,X2,X3,ks)
     for (ivec=0;ivec < IN_NUM_VALS; ivec++) {
 
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3];
@@ -565,29 +601,13 @@ int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT,
       X0[ivec] += ks[0]; X1[ivec] += ks[1]; X2[ivec] += ks[2]; X3[ivec] += ks[3]; 
       X3[ivec] += 5;     /* X[WCNT4-1] += r  */                 
 
-    }
 
-    //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
-    //u01_closed_open_32_53
-
-    //Want buff aligned also
-    #pragma omp simd aligned(X0,X1,X2,X3)         
-    for (ivec=0;ivec < NUM_VALS_32; ivec++) {
-
-#ifdef VECTOR_ORDER      
-      //Vector order - in stride
-      buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32;
-#else      
-      //Set order - Stride one over sets - as if multiple scalar calls
-      //Vector dimension out of stride
-      buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
-      buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
-      buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
-      buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
-#endif
+      //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
+      //u01_closed_open_32_53
+      RAN1[ivec] = X0[ivec]*R123_0x1p_32;
+      RAN2[ivec] = X1[ivec]*R123_0x1p_32;
+      RAN3[ivec] = X2[ivec]*R123_0x1p_32;
+      RAN4[ivec] = X3[ivec]*R123_0x1p_32;
 
     }
     
@@ -595,14 +615,14 @@ int threefry4x32f_multi_ss(unsigned int* CTR4,unsigned int* KEY4, int INCREMENT,
     return 0; 
 }
 
+//=========================================================================================================
 
-//extern "C"
 // Interface 
-// any = Supply all seeds/keys
-// --- Return 4 vectors of values as output 
+// All = Supply all counters/keys
+// Four vectors of random number are returned.      
 int threefry4x32f_multi_ctrkey_all(unsigned int* CTR1,unsigned int* CTR2,unsigned int* CTR3,unsigned int* CTR4,  
                                    unsigned int* KEY1,unsigned int* KEY2,unsigned int* KEY3,unsigned int* KEY4, 
-                                   double* buff, const int IN_NUM_VALS) {
+                                   double* RAN1, double* RAN2, double* RAN3, double* RAN4, const int IN_NUM_VALS) {
   
     int ivec;  // For iteration over vector dimesion
     //int ictr;  // For iteration over ctk/keys 1,2,3,4
@@ -740,38 +760,17 @@ int threefry4x32f_multi_ctrkey_all(unsigned int* CTR1,unsigned int* CTR2,unsigne
       X0[ivec] += ks0[ivec]; X1[ivec] += ks1[ivec]; X2[ivec] += ks2[ivec]; X3[ivec] += ks3[ivec]; 
       X3[ivec] += 5;     /* X[WCNT4-1] += r  */                 
 
-    }
 
-
-    //Want buff aligned also
-    #pragma omp simd aligned(X0,X1,X2,X3)         
-    for (ivec=0;ivec < NUM_VALS_32; ivec++) {
-    
       //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
       //u01_closed_open_32_53
-//       RAN1[ivec] = X0[ivec]*R123_0x1p_32;
-//       RAN2[ivec] = X1[ivec]*R123_0x1p_32;
-//       RAN3[ivec] = X2[ivec]*R123_0x1p_32;
-//       RAN4[ivec] = X3[ivec]*R123_0x1p_32;
-
-#ifdef VECTOR_ORDER      
-      //Vector order - in stride
-      buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32;
-      buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32;
-#else      
-      //Set order - Stride one over sets - as if multiple scalar calls
-      //Vector dimension out of stride
-      buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
-      buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
-      buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
-      buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
-#endif
+      RAN1[ivec] = X0[ivec]*R123_0x1p_32;
+      RAN2[ivec] = X1[ivec]*R123_0x1p_32;
+      RAN3[ivec] = X2[ivec]*R123_0x1p_32;
+      RAN4[ivec] = X3[ivec]*R123_0x1p_32;
+      
 
     }
     
-
     return 0; 
 }
 

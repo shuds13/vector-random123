@@ -26,8 +26,8 @@ program test_r123
   integer(kind=ik4)                       :: mpierr,ierr
 
 
-  INTEGER(KIND=ik4)                       ::  test_vec_sizes
-  EXTERNAL                                    test_vec_sizes
+!   INTEGER(KIND=ik4)                       ::  test_vec_sizes
+!   EXTERNAL                                    test_vec_sizes
 
 
   time1 = 0.0_rk8 
@@ -42,7 +42,8 @@ program test_r123
   
   !Check
   write(*,*) ''   
-  ierr = test_vec_sizes()
+  !ierr = test_vec_sizes()
+  call test_vec_sizes()
   write(*,3) NUM_VALS
   
 

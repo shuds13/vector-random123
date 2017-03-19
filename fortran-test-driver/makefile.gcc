@@ -50,17 +50,17 @@ OBJ =				\
 
 #No Vec is usually faster in serial
 orig_random123.o:	orig_random123.c
-	$(C_CMP) $(C_OPT_NOVEC) -I./Random123 -c -o orig_random123.o orig_random123.c
+	$(C_CMP) $(C_OPT_NOVEC) $(C_DEBUG) -I./Random123 -c -o orig_random123.o orig_random123.c
 	#$(C_CMP) $(C_OPT) -I./Random123 -c -o orig_random123.o orig_random123.c
 
 scalar123_novec.o:	scalar123_novec.c
-	$(C_CMP) $(C_OPT_NOVEC) -c -o scalar123_novec.o scalar123_novec.c
+	$(C_CMP) $(C_OPT_NOVEC) $(C_DEBUG) -c -o scalar123_novec.o scalar123_novec.c
 
 scalar123.o:	scalar123.c
-	$(C_CMP) $(C_OPT) -c -o scalar123.o scalar123.c
+	$(C_CMP) $(C_OPT) $(C_DEBUG) -c -o scalar123.o scalar123.c
 
 vector123.o:	vector123.c
-	$(C_CMP) $(OPENMP_FLAGS) $(C_OPT) -c -o vector123.o vector123.c
+	$(C_CMP) $(OPENMP_FLAGS) $(C_OPT) $(C_DEBUG) -c -o vector123.o vector123.c
 	#$(C_CMP) -DVECTOR_ORDER $(OPENMP_FLAGS) $(C_OPT) -c -o vector123.o vector123.c
 
 test:	$(OBJ_RAND123) $(OBJ)

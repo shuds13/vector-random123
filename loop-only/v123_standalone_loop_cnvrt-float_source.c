@@ -1,5 +1,9 @@
 //--------------------------------------------------------------------------------------------------
-// S. Hudson: Vector123 loop only test
+// S. Hudson: Vector123 loop-only test
+//            Apply vectorizable threefry4x32 to generate large array of random floats between 0 and 1
+//            Aims to test performance of pure conversion loop - scalar v vectorized
+//            Number of values produced is 4*NUM_VALS_32
+//            Standard source code version.
 //--------------------------------------------------------------------------------------------------
 
 /*
@@ -35,8 +39,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include <time.h>
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 // Allows use of short forms like uint32_t
 #include <stdint.h>
@@ -52,14 +58,23 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #define VECTOR_LENGTH_BYTES 64
-#define NUM_VALS_32 1600000
-#define NUM_VALS_64 800000
+#define NUM_VALS_32 16000000
+#define NUM_VALS_64 8000000
 
 #define SKEIN_MK_64(hi32,lo32)  ((lo32) + (((uint64_t) (hi32)) << 32))
 #define SKEIN_KS_PARITY64         SKEIN_MK_64(0x1BD11BDA,0xA9FC1A22)
 #define SKEIN_KS_PARITY32         0x1BD11BDA
 
-#define R123_0x1p_32                (1./4294967296.)   // for 32_53 CO,OC,OO int4 to d.p
+//#define R123_0x1p_32                (1./4294967296.)   // for 32_53 CO,OC,OO int4 to d.p
+#define R123_0x1p_32f               (1.f/4294967296.f) //float version for CC
+#define R123_0x1p_24f               (1.f/16777216.f)   //float version for CO
+
+
+static inline uint64_t rdtsc(){
+  unsigned int lo,hi;
+  __asm__ __volatile__ ("rdtsc" : "=a" (lo) "=d" (hi));
+  return ((uint64_t)hi << 32) | lo;
+}
 
 
 static inline uint32_t RotL_32(uint32_t x, unsigned int N)
@@ -95,8 +110,13 @@ int main (void)
     int ivec;    
     int ictr;  // For iteration over ctk/keys 1,2,3,4
     
+    //clock - cpu timing
     clock_t start, diff;
     int msec;
+    uint64_t rdtsc_count1, rdtsc_count2;
+
+    //gettimeofday - wall clock timing
+    struct timeval  tv1, tv2;
     
     //uint32_t ks[4+1]; //Assuming one set of keys
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t ks[4+1]; //Assuming one set of keys
@@ -111,14 +131,19 @@ int main (void)
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X1;
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X2;
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X3;
+
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff;
     
+
     X0 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     X1 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     X2 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     X3 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     
+    buff = (float*)malloc(NUM_VALS_32 * 4 * sizeof(float));
     
     //start = clock();
+    //gettimeofday(&tv1, NULL);
     
     ks[4] =  SKEIN_KS_PARITY32;
 
@@ -147,6 +172,8 @@ int main (void)
     }
    
     start = clock();
+    gettimeofday(&tv1, NULL);
+    rdtsc_count1 = rdtsc();
 
     //loop over vector length
     #pragma omp simd aligned(X0,X1,X2,X3,ks)         
@@ -240,27 +267,52 @@ int main (void)
       X3[ivec] += 5;     /* X[WCNT4-1] += r  */                 
 
 
-      //Convert integers to doubles uniformly distributed between 0 and 1 inclusive/exlusive
+      //Convert integers to floats uniformly distributed between 0 and 1 inclusive/exlusive
       //u01_closed_open_32_53
       //buff[ivec*4+0] = X0[ivec]*R123_0x1p_32;
       //buff[ivec*4+1] = X1[ivec]*R123_0x1p_32;
       //buff[ivec*4+2] = X2[ivec]*R123_0x1p_32;
       //buff[ivec*4+3] = X3[ivec]*R123_0x1p_32;
+      
+      //Vector order stores - u01_closed_closed_32_24
+      //buff[NUM_VALS_32*0 + ivec] = X0[ivec]*R123_0x1p_32f;
+      //buff[NUM_VALS_32*1 + ivec] = X1[ivec]*R123_0x1p_32f;
+      //buff[NUM_VALS_32*2 + ivec] = X2[ivec]*R123_0x1p_32f;
+      //buff[NUM_VALS_32*3 + ivec] = X3[ivec]*R123_0x1p_32f;
+      
+      //Vector order stores - u01_closed_open_32_24
+      buff[NUM_VALS_32*0 + ivec] = (X0[ivec]>>8)*R123_0x1p_24f;
+      buff[NUM_VALS_32*1 + ivec] = (X1[ivec]>>8)*R123_0x1p_24f;
+      buff[NUM_VALS_32*2 + ivec] = (X2[ivec]>>8)*R123_0x1p_24f;
+      buff[NUM_VALS_32*3 + ivec] = (X3[ivec]>>8)*R123_0x1p_24f;
 
     }
 
+    rdtsc_count2 = rdtsc();
+
     diff = clock() - start;
+    gettimeofday(&tv2, NULL);
+    
+    printf("Num sets: %d   Tot. num randoms: %d\n",NUM_VALS_32,NUM_VALS_32*4);
+    printf("cycles: %llu\n",rdtsc_count2 - rdtsc_count1);
 
     msec = diff * 1000 / CLOCKS_PER_SEC;
 //    printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
-    printf("Time taken %d.%d seconds\n", msec/1000, msec%1000);
-    printf("X0[100]  = %d\n",X0[100]);
-    printf("X3[1000] = %d\n",X3[1000]);
+    printf("Time taken (CPU)  = %d.%d seconds\n", msec/1000, msec%1000);
     
+    printf ("Time taken (Wall) = %f seconds\n",
+         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
+         (double) (tv2.tv_sec - tv1.tv_sec));
+    
+    printf("buff[100]  = %f\n",buff[100]);
+    printf("buff[1000] = %f\n",buff[1000]);
+    printf("buff[3*NUM_VALS_32-1] = %f\n\n",buff[3*NUM_VALS_32-1]);
+        
     free(X0);
     free(X1);
     free(X2);
     free(X3);
+    free(buff);    
     
 
     return 0; 
