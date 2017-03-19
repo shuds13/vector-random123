@@ -99,7 +99,8 @@ All results were based on threefry4x32
 These tests show that the threefry generator on its own gains very impressive vectorisation
 performance - near perfect when taking into account the relative number of ALUs and vector units
 on each system. In particular KNL, when using the fast rol intrinsic has 16.3x over non-vectorised
-version - 100% vector efficiency. This should be supported from source code in future compiler verssions.
+version - 100% vector efficiency. This should be supported from source code in future compiler versions.
+The results below are all based on the threefry4x32 generator with the default 20 rounds.
 
 Comparison producing 64 million random numbers.
 
@@ -140,19 +141,17 @@ With conversion to floats KNL has parity with Haswell at single thread.  0.179 v
 
 Likewise with conversion to doubles - 0.274 v 0.264(knl)
 
-Thus KNLs cycles per byte is signficantly better than Haswell, taking advantage of better vector performance.
+Given the lower clockrate KNLs cycles per byte (cpB) is signficantly better than Haswell, taking advantage of better vector performance. The graph below shows a comparison of cpB for single thread runs on each of the platforms. This includes the KNL intrinsics version which achieves a cpB of 0.48.
 
-
+![image](https://cloud.githubusercontent.com/assets/16457059/24082740/6860d78e-0cc2-11e7-9d2c-c48ce1441949.png)  
 
 ### Fully populated processors - using OpenMP threads ###
-
 
 Comparison producing 640 million random integers (no float/double conversions).
 
 E5-2680v3 Haswell 12-core 2.5GHz  
 v  
 KNL-7210 (64 cores - 4HW threads per core) 1.3GHz
-
 
 Best results on one 12-core Haswell:
 * 24 threads (2 threads/core): = 0.077792 seconds (3.1 x non-vec code)
@@ -162,4 +161,7 @@ Best results on one KNL-7210:
 
 KNL = 5.1x over Haswell
 
+![image](https://cloud.githubusercontent.com/assets/16457059/24082837/c326f9f4-0cc3-11e7-984f-f6b94194716a.png)  
+
+These results suggest that the vectorised threefry generator, on KNL in particular, is producing close to peak integer operations per second. Quantification of this to follow.
 
