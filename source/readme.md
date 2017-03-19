@@ -35,18 +35,15 @@ More details of each routine are given in the files.
 
 ### List of current variants
 
-
-v123_threefry4x32b_dble.c 
-v123_threefry4x32r_dble.c 
-
-v123_threefry4x64b_dble.c 
-
-v123_threefry2x64b_dble.c
+* v123_threefry4x32b_dble.c 
+* v123_threefry4x32r_dble.c 
+* v123_threefry4x64b_dble.c 
+* v123_threefry2x64b_dble.c
 
 
 ### Setting Parameters ###
 
-Modify the following paramaters (macros) according to the vector length of system.
+The following paramaters (macros) can be modified according to the vector length of system. In most cases the defaults should be ok. Make sure these are changed under the //DEFAULTS line, unless using the auto-detect option (see below).
 
 VECTOR_LENGTH_BYTES  
 NUM_VALS_32  
@@ -97,16 +94,15 @@ It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on
 
 ### Proposed renaming
 
-The routines may be renamed in the following format.
+The routines may be renamed in the following format.  
 
-v123_threefry4x32b_dble.c:  threefry4x32f_multi_ss_fix         to  v123_threefry4x32b_ss_fix
-v123_threefry4x32b_dble.c:  threefry4x32f_multi_ss             to  v123_threefry4x32b_ss
-v123_threefry4x32b_dble.c:  threefry4x32f_multi_ctrkey_all     to  v123_threefry4x32b_ctrkey_all
+v123_threefry4x32b_dble.c:  threefry4x32f_multi_ss_fix         to  v123_threefry4x32b_ss_fix  
+v123_threefry4x32b_dble.c:  threefry4x32f_multi_ss             to  v123_threefry4x32b_ss  
+v123_threefry4x32b_dble.c:  threefry4x32f_multi_ctrkey_all     to  v123_threefry4x32b_ctrkey_all  
 
-v123_threefry4x32r_dble.c:  threefry4x32f_multi_ss_fix         to  v123_threefry4x32r_ss_fix
-v123_threefry4x32r_dble.c:  threefry4x32f_multi_ss             to  v123_threefry4x32r_ss
-v123_threefry4x32r_dble.c:  threefry4x32f_multi_ctrkey_all     to  v123_threefry4x32r_ctrkey_all
+v123_threefry4x32r_dble.c:  threefry4x32f_multi_ss_fix         to  v123_threefry4x32r_ss_fix  
+v123_threefry4x32r_dble.c:  threefry4x32f_multi_ss             to  v123_threefry4x32r_ss  
+v123_threefry4x32r_dble.c:  threefry4x32f_multi_ctrkey_all     to  v123_threefry4x32r_ctrkey_all  
 
 etc...
 
-----------------------------------------------------------------------------------------------------
