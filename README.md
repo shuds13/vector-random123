@@ -8,7 +8,7 @@ Random123 resources can be found [here](http://www.thesalmons.org/john/random123
 
 Note that while the random numbers generated for a given set of counters/keys in the vectorised functions should be identical to the originals, there is no guarantee of correctness. This project is still in development. Initial focus is on the Threefry generator.
 
-Current performance results can be viewed [here](Benchmarking-Results).
+Current performance results can be viewed under [Benchmarking](#benchmakring) below.
 
 
 ## Current status 
@@ -84,7 +84,7 @@ Alternatively you can use the functions that pass in the vector size (or number 
 It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on the main loop. This makes it more likely for the compiler to successfully vectorise the loop, as well as indicating alignment of work arrays. This requires that OpenMP 4.0 or higher is supported. The loop should vectorise without these pragmas enabled, but it is always worth checking. It is expected that threading will normally be implemented above this level, but threaded versions of the routines can be found under the loop-only directory. The functions could also be structured as openmp SIMD subroutines using scalar arguments. 
 <br />
 
-## Benchmarking Results ##
+## Benchmarking ##
 
 Results from benchmarking on Ivy Bridge, Haswell and Xeon Phi(KNL)
 
