@@ -1,4 +1,6 @@
-## vector-random123
+# vector-random123
+
+## Introduction
 
 vector-random123 (abbr. below as vector123) is a vectorizable port of the counter based random number generators in Random123. The reformatted functions are written in plain C and optimized for performance, clarity and portability.
 
@@ -6,31 +8,28 @@ Random123 resources can be found [here](http://www.thesalmons.org/john/random123
 
 Note that while the random numbers generated for a given set of counters/keys in the vectorised functions should be identical to the originals, there is no guarantee of correctness. This project is still in development. Initial focus is on the Threefry generator.
 
+Current performance results can be viewed [here](Benchmarking-Results).
+
 
 ## Current status 
 
 
 * Only threefry4x32 fully implemented and tested
 
-* threefry4x32, threefry4x64, threefry2x64 have been implemented.
-
+* threefry4x32, threefry4x64, threefry2x64 have also been implemented.
 
 * Though answers tested have been identical to the crush resistant Random123, a thorough QA has not been carried out and no RNG test batteries have yet been run.
 
-* __Priority__ The functions currently output doubles between 0 <= x < 1 (closed/open) by default. Different options will be provided soon.
+* The functions currently output doubles between 0 <= x < 1 (closed/open) by default. Different options can be found in the Random123 file u01.h or in more recent versions u01fixedpt.h.
   
-* Documentation - including routines available will be added soon. Some information is provided in the source files (see source directory) files and in fortran harness see interface section in rng_wrapper.F for some info.
- 
-* Results for different platforms - also to follow
- 
-* Current version contains vectorisable loop inside the function. A vectorisable version that can be called inside a loop is to follow.
+* Documentation is limied but some information is provided in the source directory and source files themselves. 
 
 * Currently the vector123 functions are set up to be standalone. However, see the comments at top of source files to see how to pick up the Random123/ directory. This provides access to some of the features files for different systems.
 
  
 ## Instructions for use
 
-Note: The fortran-test-driver/ directory contains an example of using the vector versions of threefry4x32. It also tests performance of different implementations. Running this may be the quickest way to go.
+Update: Updated instructions for incorporating the source files are in the readme in the source directory. The source files themselves also contain explanations of the functions. The loop-only programs can be run to test scalar and vector performance on a given system. The fortran-test-driver/ directory contains an example of using the vector versions of threefry4x32 within a Fortran progam. It also tests performance of different implementations and compares with the original scalar routines with the calling overheads that maybe incurred in a typical application.
 
 
 ### Setting Parameters ###
@@ -76,16 +75,16 @@ eg. AVX2
  #define NUM_VALS_32 8000  
  #define NUM_VALS_64 4000  
  
-It is not difficult to use these values for initialisation of data structures in the calling code - and for many systems the processors capability can be detected automatically - eg. `#if defined(__AVX512F__)` See commented out lines at top of the source files Alternatively you can use the functions that pass in the vector size (or number of sets). Depending on the system, using a compile time constant for the vector length may be either the same or faster than passing in as an argument. It is worth always checking that the loop has succesfully vectorised.
+It is not difficult to use these values for initialisation of data structures in the calling code - and for many systems the processors capability can be detected automatically - eg. `#if defined(__AVX512F__)` See commented out lines at top of the source files. To use automatic detection set the macro AUTO_SELECT to 1 in the source files. The values can be checked with a call to v123_get_vec_sizes().
+
+Alternatively you can use the functions that pass in the vector size (or number of sets). Depending on the system, using a compile time constant for the vector length may be either the same or faster than passing in as an argument. It is worth always checking that the loop has succesfully vectorised.
 
 ### OpenMP ###
 
-It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on the main loop. This makes it more likely for the compiler to successfully vectorise the loop, as well as indicating alignment of work arrays. This requires that OpenMP 4.0 or higher is supported. The loop should vectorise without these pragmas enabled, but it is always worth checking.
-
-
+It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on the main loop. This makes it more likely for the compiler to successfully vectorise the loop, as well as indicating alignment of work arrays. This requires that OpenMP 4.0 or higher is supported. The loop should vectorise without these pragmas enabled, but it is always worth checking. It is expected that threading will normally be implemented above this level, but threaded versions of the routines can be found under the loop-only directory. The functions could also be structured as openmp SIMD subroutines using scalar arguments. 
 <br />
 
-## Benchmarking ##
+## Benchmarking Results ##
 
 Results from benchmarking on Ivy Bridge, Haswell and Xeon Phi(KNL)
 
