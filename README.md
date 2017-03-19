@@ -75,7 +75,7 @@ eg. AVX2
  #define NUM_VALS_32 8000  
  #define NUM_VALS_64 4000  
  
-It is not difficult to use these values for initialisation of data structures in the calling code - and for many systems the processors capability can be detected automatically - eg. `#if defined(__AVX512F__)` See commented out lines at top of the source files. To use automatic detection set the macro AUTO_SELECT to 1 in the source files. The values can be checked with a call to v123_get_vec_sizes().
+It is not difficult to use these values for initialisation of data structures in the calling code - and for many systems the processors capability can be detected automatically - eg. `#if defined(__AVX512F__)` To use automatic detection set the macro AUTO_SELECT to 1 in the source files. The values can be checked with a call to v123_get_vec_sizes().
 
 Alternatively you can use the functions that pass in the vector size (or number of sets). Depending on the system, using a compile time constant for the vector length may be either the same or faster than passing in as an argument. It is worth always checking that the loop has succesfully vectorised.
 
@@ -140,7 +140,7 @@ With conversion to floats KNL has parity with Haswell at single thread.  0.179 v
 
 Likewise with conversion to doubles - 0.274 v 0.264(knl)
 
-Given the lower clockrate KNLs cycles per byte (cpB) is signficantly better than Haswell, taking advantage of better vector performance. The graph below shows a comparison of cpB for single thread runs on each of the platforms. This includes the KNL intrinsics version which achieves a cpB of 0.48.
+A popular performance metric for RNGs is cycles per byte (cpB). KNL has a signficantly better cpB than Haswell,  taking advantage of better vector performance, while this metric is not affected by KNLs lower clockrate. The graph below shows a comparison of cpB for single thread runs on each of the platforms. This includes the KNL intrinsics version which achieves a cpB of 0.48.
 
 ![image](https://cloud.githubusercontent.com/assets/16457059/24082740/6860d78e-0cc2-11e7-9d2c-c48ce1441949.png)  
 
