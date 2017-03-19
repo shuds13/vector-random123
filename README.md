@@ -108,6 +108,8 @@ Vector v Scalar for pure threefry4x32 generator:
 * Haswell    ~ 5.2x
 * KNL        ~ 12.8 / 16.4x(AVX512 intrinsics)
 
+![image](https://cloud.githubusercontent.com/assets/16457059/24082629/ade23b6a-0cc0-11e7-95cd-03a791b16d1a.png)  
+
 The conversion to floats or double, however, takes longer than the generator and reduces speed up significantly.
 In particular, converting 32-bit ints to doubles will require a split of the vector. The resuts below do not
 include the intrinsics version.
@@ -117,12 +119,14 @@ Vector v Scalar with conversion to double:
 * Haswell    ~ 2.3x
 * KNL        ~ 6.8x
 
+![image](https://cloud.githubusercontent.com/assets/16457059/24082662/41add746-0cc1-11e7-9367-4481cad143fd.png)  
 
 Vector v scalar with conversion to float:
 * Ivy Bridge ~ 2.1x
 * Haswell    ~ 3.1x
 * KNL        ~ 9.4x
 
+![image](https://cloud.githubusercontent.com/assets/16457059/24082647/12ec9280-0cc1-11e7-96cb-bb1256246e74.png)  
 
 #### Haswell v KNL ####
 
