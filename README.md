@@ -86,11 +86,11 @@ It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on
 
 ## Benchmarking
 
-Results from benchmarking on Ivy Bridge, Haswell and Xeon Phi(KNL)
+Results from benchmarking on Ivy Bridge, Haswell and Xeon Phi (KNL).
 
 See loop-only directory for more details - including source code used and full results.
 
-All results were based on threefry4x32
+The results below are all based on the threefry4x32 generator with the default 20 rounds.
 
 
 ### Single threaded performance ###
@@ -99,7 +99,7 @@ These tests show that the threefry generator on its own gains very impressive ve
 performance - near perfect when taking into account the relative number of ALUs and vector units
 on each system. In particular KNL, when using the fast rol intrinsic has 16.3x over non-vectorised
 version - 100% vector efficiency. This should be supported from source code in future compiler versions.
-The results below are all based on the threefry4x32 generator with the default 20 rounds.
+
 
 Comparison producing 64 million random numbers.
 
