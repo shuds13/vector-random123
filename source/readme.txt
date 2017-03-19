@@ -1,3 +1,5 @@
+## Directory Contents
+
 Currently, these are standalone files where the appropriate file can be merged into users source
 code, as it is likely users will want to only use one variation of routines. Example makefile
 options can be seen in the fortran driver directory. Thus the files in here include replication
@@ -6,7 +8,7 @@ of definitions.
 An alternative library format which will employ shared header files may be implemented in the future.
 Also routines may be renamed.
 
-File variants:
+### File variants
 
 The b and r variants are based on the format in which the random numbers are supplied.
 
@@ -28,11 +30,11 @@ processed in parallel.
 The suffix _dble deontes that a double is returned. For floats modify the buff argument to a float and
 adjust the conversion according to the Random123 u01.h or u01fixedpt.h header files.
 
-More details are given in the files.
+More details of each routine are given in the files.
 
-----------------------------------------------------------------------------------------------------
-List of current variants:
-----------------------------------------------------------------------------------------------------
+
+### List of current variants
+
 
 v123_threefry4x32b_dble.c 
 v123_threefry4x32r_dble.c 
@@ -41,8 +43,10 @@ v123_threefry4x64b_dble.c
 
 v123_threefry2x64b_dble.c
 
-----------------------------------------------------------------------------------------------------
-Proposed renaming:
+
+
+
+### Proposed renaming
 
 The routines may be renamed in the following format.
 
