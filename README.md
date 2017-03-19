@@ -89,7 +89,7 @@ It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on
 
 Results from benchmarking on Ivy Bridge, Haswell and Xeon Phi(KNL)
 
-see loop-only directory for more details - including source code used and full results.
+See loop-only directory for more details - including source code used and full results.
 
 All results were based on threefry4x32
 
@@ -103,24 +103,25 @@ version - 100% vector efficiency. This should be supported from source code in f
 
 Comparison producing 64 million random numbers.
 
-Vector v scalar for pure threefry4x32 generator:
-Ivy Bridge ~ 2.9x
-Haswell    ~ 5.2x
-KNL        ~ 12.8/16.4x(AVX512 intrinsics)
+Vector v Scalar for pure threefry4x32 generator:
+* Ivy Bridge ~ 2.9x
+* Haswell    ~ 5.2x
+* KNL        ~ 12.8 / 16.4x(AVX512 intrinsics)
 
 The conversion to floats or double, however, takes longer than the generator and reduces speed up significantly.
-In particular, if converting 32-bit ints to doubles will require a split of the vector.
+In particular, converting 32-bit ints to doubles will require a split of the vector. The resuts below do not
+include the intrinsics version.
 
-Vector v scalar with conversion to double:
-Ivy Bridge ~ 1.8x
-Haswell    ~ 2.3x
-KNL        ~ 6.8x
+Vector v Scalar with conversion to double:
+* Ivy Bridge ~ 1.8x
+* Haswell    ~ 2.3x
+* KNL        ~ 6.8x
 
 
 Vector v scalar with conversion to float:
-Ivy Bridge ~ 2.1x
-Haswell    ~ 3.1x
-KNL        ~ 9.4x
+* Ivy Bridge ~ 2.1x
+* Haswell    ~ 3.1x
+* KNL        ~ 9.4x
 
 
 #### Haswell v KNL ####
@@ -130,7 +131,7 @@ The results below are based on the source code versions.
 While KNL has the best speed up from vectorisation - Haswell is 1.6x faster than KNL for single thread performance
 on pure threefry (0.078sec to 0.123). Note: The AVX512 intrinsics version on KNL achieves 0.096sec
 
-KNL seems to do better with the conversions, however.
+KNL seems to do better with the conversions, however.  
 With conversion to floats KNL has parity with Haswell at single thread.  0.179 v 0.183(knl)
 
 Likewise with conversion to doubles - 0.274 v 0.264(knl)
@@ -144,21 +145,17 @@ Thus KNLs cycles per byte is signficantly better than Haswell, taking advantage 
 
 Comparison producing 640 million random integers (no float/double conversions).
 
-E5-2680v3 Haswell 12-core 2.5GHz 
-v
+E5-2680v3 Haswell 12-core 2.5GHz  
+v  
 KNL-7210 (64 cores - 4HW threads per core) 1.3GHz
 
-================================================================================
 
 Best results on one 12-core Haswell:
-24 threads (2 threads/core): = 0.077792 seconds (3.1 x non-vec code)
+* 24 threads (2 threads/core): = 0.077792 seconds (3.1 x non-vec code)
 
 Best results on one KNL-7210:
-128 threads (2HW threads/core): = 0.015215 seconds (14.0 x non-vec code)
+* 128 threads (2HW threads/core): = 0.015215 seconds (14.0 x non-vec code)
 
-KNL = 5.1x Haswell
+KNL = 5.1x over Haswell
 
-Note: 
-Threaded KNL results used the source code version
-(does not include fast rol instrinsic as of intel 16.0):
 
