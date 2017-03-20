@@ -29,11 +29,15 @@ Current performance results can be viewed under [Benchmarking](#benchmarking) be
  
 ## Instructions for use
 
-Update: Updated instructions for incorporating the source files are in the readme in the source directory. The source files themselves also contain explanations of the functions. The loop-only programs can be run to test scalar and vector performance on a given system. The fortran-test-driver/ directory contains an example of using the vector versions of threefry4x32 within a Fortran progam. It also tests performance of different implementations and compares with the original scalar routines with the calling overheads that maybe incurred in a typical application.
+Instructions for incorporating the source files are in the readme in the source directory. The source files themselves also contain explanations of the functions.
+
+The loop-only programs can be run to test scalar and vector performance on a given system. These programs simply generate a large array of random numbers (either ints, floats or doubles) along with timing information. The existing build scripts can be easily modified to create either scalar or vector builds for intel systems. Of course these will need to be modified for other platforms. A version written using AVX512 vector intrinsics is included which, in current benchmarking, is about 30% faster than the source code version on the KNL (Intel Knight's Landing Xeon Phi). Threaded versions of these routines are also available.
+
+The fortran-test-driver/ directory contains an example of calling the vector versions of threefry4x32 within a Fortran progam. It also tests performance of different implementations and compares with the original scalar routines, including the calling overheads that maybe incurred in a typical application.
 
 ### OpenMP ###
 
-It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on the main loop. This makes it more likely for the compiler to successfully vectorise the loop, as well as indicating alignment of work arrays. This requires that OpenMP 4.0 or higher is supported. The loop should vectorise without these pragmas enabled, but it is always worth checking. It is expected that threading will normally be implemented above this level, but threaded versions of the routines can be found under the loop-only directory. The functions could also be structured as openmp SIMD subroutines using scalar arguments. 
+It is preferable to have OpenMP enabled, as the OpenMP SIMD directive is used on the main loop. This makes it more likely for the compiler to successfully vectorise the loop, as well as indicating alignment of work arrays. This requires that OpenMP 4.0 or higher is supported. The loop should vectorise without these pragmas enabled, but it is always worth checking. It is expected that threading will normally be implemented above this level, but threaded versions of the code can be found under the loop-only directory. The functions could also be structured as OpenMP SIMD functions using scalar arguments.
 <br />
 
 ## Benchmarking
