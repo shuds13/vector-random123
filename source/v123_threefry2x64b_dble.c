@@ -550,8 +550,8 @@ int threefry2x64f_multi_ss(unsigned long long int* CTR2, unsigned long long int*
 #else      
       //Set order - Stride one over sets - as if multiple scalar calls
       //Vector dimension out of stride
-      buff[ivec*4+0] = (X0[ivec]>>11)*R123_0x1p_53;
-      buff[ivec*4+1] = (X1[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*2+0] = (X0[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*2+1] = (X1[ivec]>>11)*R123_0x1p_53;
 #endif
 
     }
@@ -672,8 +672,8 @@ int threefry2x64f_multi_ctrkey_all(unsigned long long int* CTR1,unsigned long lo
 #else      
       //Set order - Stride one over sets - as if multiple scalar calls
       //Vector dimension out of stride
-      buff[ivec*4+0] = (X0[ivec]>>11)*R123_0x1p_53;
-      buff[ivec*4+1] = (X1[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*2+0] = (X0[ivec]>>11)*R123_0x1p_53;
+      buff[ivec*2+1] = (X1[ivec]>>11)*R123_0x1p_53;
 #endif
 
     }
