@@ -280,7 +280,7 @@ int main (void)
       tempX2 = _mm512_add_epi32(tempX2, tempks4);
       tempX3 = _mm512_add_epi32(tempX3, tempks0);
       
-      __m512i incrm = _mm512_set1_epi32(2);
+      incrm = _mm512_set1_epi32(2);
       tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
       
@@ -304,7 +304,7 @@ int main (void)
       tempX2 = _mm512_add_epi32(tempX2, tempks0);
       tempX3 = _mm512_add_epi32(tempX3, tempks1);
       
-      __m512i incrm = _mm512_set1_epi32(3);
+      incrm = _mm512_set1_epi32(3);
       tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
       
@@ -328,7 +328,7 @@ int main (void)
       tempX2 = _mm512_add_epi32(tempX2, tempks1);
       tempX3 = _mm512_add_epi32(tempX3, tempks2);
       
-      __m512i incrm = _mm512_set1_epi32(4);
+      incrm = _mm512_set1_epi32(4);
       tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
       
@@ -353,7 +353,7 @@ int main (void)
       tempX2 = _mm512_add_epi32(tempX2, tempks2);
       tempX3 = _mm512_add_epi32(tempX3, tempks3);
       
-      __m512i incrm = _mm512_set1_epi32(5);
+      incrm = _mm512_set1_epi32(5);
       tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
 
