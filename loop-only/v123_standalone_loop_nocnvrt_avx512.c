@@ -215,12 +215,6 @@ int main (void)
     #pragma omp simd aligned(X0,X1,X2,X3)         
     for (ivec=0;ivec < NUM_VALS_32; ivec+=16) {
              
-/*      
-      X0[ivec] += ks[0];
-      X1[ivec] += ks[1];
-      X2[ivec] += ks[2];
-      X3[ivec] += ks[3];
-*/
       // load X array vectors   
       __m512i tempX0 = _mm512_load_si512(&X0[ivec]);
       __m512i tempX1 = _mm512_load_si512(&X1[ivec]);
@@ -233,19 +227,13 @@ int main (void)
       __m512i tempks2 = _mm512_set1_epi32(ks2);
       __m512i tempks3 = _mm512_set1_epi32(ks3);
       __m512i tempks4 = _mm512_set1_epi32(ks4);
-      
-      //__m512i tempks1 = _mm512_broadcastd_epi32(&ks[1]);
-      //__m512i tempks2 = _mm512_broadcastd_epi32(&ks[2]);
-      //__m512i tempks3 = _mm512_broadcastd_epi32(&ks[3]);
 
       //-----------------------------------------------------
       //Injection 0. (from ks0)
       tempX0 = _mm512_add_epi32(tempX0, tempks0);
       tempX1 = _mm512_add_epi32(tempX1, tempks1);
       tempX2 = _mm512_add_epi32(tempX2, tempks2);
-      tempX3 = _mm512_add_epi32(tempX3, tempks3);
-      
-      //sh - so far used 8 vector registers.
+      tempX3 = _mm512_add_epi32(tempX3, tempks3);    
       //-----------------------------------------------------
       
       //Rounds 1-4
@@ -268,6 +256,8 @@ int main (void)
       tempX2 = _mm512_add_epi32(tempX2, tempks3);
       tempX3 = _mm512_add_epi32(tempX3, tempks4);
       
+      __m512i incrm = _mm512_set1_epi32(1);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
       
       //Rounds 5-8
@@ -290,6 +280,8 @@ int main (void)
       tempX2 = _mm512_add_epi32(tempX2, tempks4);
       tempX3 = _mm512_add_epi32(tempX3, tempks0);
       
+      __m512i incrm = _mm512_set1_epi32(2);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
       
       //Rounds 9-12
@@ -312,6 +304,8 @@ int main (void)
       tempX2 = _mm512_add_epi32(tempX2, tempks0);
       tempX3 = _mm512_add_epi32(tempX3, tempks1);
       
+      __m512i incrm = _mm512_set1_epi32(3);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
       
       //Rounds 13-16
@@ -334,6 +328,8 @@ int main (void)
       tempX2 = _mm512_add_epi32(tempX2, tempks1);
       tempX3 = _mm512_add_epi32(tempX3, tempks2);
       
+      __m512i incrm = _mm512_set1_epi32(4);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
       
       //Rounds 17-20
@@ -357,6 +353,8 @@ int main (void)
       tempX2 = _mm512_add_epi32(tempX2, tempks2);
       tempX3 = _mm512_add_epi32(tempX3, tempks3);
       
+      __m512i incrm = _mm512_set1_epi32(5);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
 
 //Store X values
