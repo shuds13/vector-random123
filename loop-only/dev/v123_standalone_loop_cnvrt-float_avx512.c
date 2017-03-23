@@ -1,7 +1,7 @@
 //--------------------------------------------------------------------------------------------------
 // S. Hudson: Vector123 loop-only test - using AVX512 instrinsics
-//            Apply vectorizable threefry4x32 to generate large array of random doubles between 0 and 1
-//            Aims to test performance of pure conversion loop - scalar v vectorized
+//            Apply vectorizable threefry4x32 to generate large array of random floats between 0 and 1
+//            Aims to test performance of threefry and conversion to float - scalar v vectorized
 //            Number of values produced is 4*NUM_VALS_32
 //            AVX512 vector intrinsics version.
 //--------------------------------------------------------------------------------------------------
@@ -65,7 +65,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define SKEIN_KS_PARITY64       SKEIN_MK_64(0x1BD11BDA,0xA9FC1A22)
 #define SKEIN_KS_PARITY32       0x1BD11BDA
 
-//#define R123_0x1p_32            (1./4294967296.)   // for 32_53 CO,OC,OO int4 to d.p
+
+//#define R123_0x1p_32                (1./4294967296.)   // for 32_53 CO,OC,OO int4 to d.p
+#define R123_0x1p_32f               (1.f/4294967296.f) //float version for CC
+#define R123_0x1p_24f               (1.f/16777216.f)   //float version for CO
+
+
 
 //*
 //Generate vector rol instruction - fast
@@ -132,8 +137,6 @@ enum r123_enum_threefry32x4 {
 int main (void)
 {
 
-    const float R123_0x1p_32 = 1./4294967296.;
-
     int ivec;    
     int ictr;  // For iteration over ctk/keys 1,2,3,4
     
@@ -167,22 +170,25 @@ int main (void)
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X2;
     __attribute__((aligned(VECTOR_LENGTH_BYTES))) uint32_t *X3;
 
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff0;
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff1;
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff2;
-    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff3;
-    
+    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff0;
+    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff1;
+    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff2;
+    //__attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff3;
+
+    __attribute__((aligned(VECTOR_LENGTH_BYTES))) float *buff;
 
     X0 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     X1 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     X2 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     X3 = (uint32_t*)malloc(NUM_VALS_32 * sizeof(uint32_t));
     
-    buff0 = (float*)malloc(NUM_VALS_32 * sizeof(float));
-    buff1 = (float*)malloc(NUM_VALS_32 * sizeof(float));
-    buff2 = (float*)malloc(NUM_VALS_32 * sizeof(float));
-    buff3 = (float*)malloc(NUM_VALS_32 * sizeof(float));
-        
+    //buff0 = (float*)malloc(NUM_VALS_32 * sizeof(float));
+    //buff1 = (float*)malloc(NUM_VALS_32 * sizeof(float));
+    //buff2 = (float*)malloc(NUM_VALS_32 * sizeof(float));
+    //buff3 = (float*)malloc(NUM_VALS_32 * sizeof(float));
+    
+    buff = (float*)malloc(NUM_VALS_32 * 4 * sizeof(float));
+	
     //start = clock();
     //gettimeofday(&tv1, NULL);
     
@@ -224,8 +230,7 @@ int main (void)
 
     //Ok so if use intrinsics need sep vector length from num vals
     
-    //loop over vector length
-    #pragma omp simd aligned(X0,X1,X2,X3)         
+    //loop over vector length        
     for (ivec=0;ivec < NUM_VALS_32; ivec+=16) {
              
 /*      
@@ -280,7 +285,9 @@ int main (void)
       tempX1 = _mm512_add_epi32(tempX1, tempks2);
       tempX2 = _mm512_add_epi32(tempX2, tempks3);
       tempX3 = _mm512_add_epi32(tempX3, tempks4);
-      
+
+      __m512i incrm = _mm512_set1_epi32(1);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);
       //-----------------------------------------------------
       
       //Rounds 5-8
@@ -302,7 +309,9 @@ int main (void)
       tempX1 = _mm512_add_epi32(tempX1, tempks3);
       tempX2 = _mm512_add_epi32(tempX2, tempks4);
       tempX3 = _mm512_add_epi32(tempX3, tempks0);
-      
+	    
+      __m512i incrm = _mm512_set1_epi32(2);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);	    
       //-----------------------------------------------------
       
       //Rounds 9-12
@@ -324,6 +333,9 @@ int main (void)
       tempX1 = _mm512_add_epi32(tempX1, tempks4);
       tempX2 = _mm512_add_epi32(tempX2, tempks0);
       tempX3 = _mm512_add_epi32(tempX3, tempks1);
+	    
+      __m512i incrm = _mm512_set1_epi32(3);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);	    
       
       //-----------------------------------------------------
       
@@ -346,6 +358,9 @@ int main (void)
       tempX1 = _mm512_add_epi32(tempX1, tempks0);
       tempX2 = _mm512_add_epi32(tempX2, tempks1);
       tempX3 = _mm512_add_epi32(tempX3, tempks2);
+	    
+      __m512i incrm = _mm512_set1_epi32(4);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);	    
       
       //-----------------------------------------------------
       
@@ -369,56 +384,39 @@ int main (void)
       tempX1 = _mm512_add_epi32(tempX1, tempks1);
       tempX2 = _mm512_add_epi32(tempX2, tempks2);
       tempX3 = _mm512_add_epi32(tempX3, tempks3);
+	    
+      __m512i incrm = _mm512_set1_epi32(5);
+      tempX3 = _mm512_add_epi32(tempX3, incrm);	    
       
       //-----------------------------------------------------
+      //x0[ivec]>>8
+      tempX0 = _mm512_srli_epi32(tempX0, 8);
+      tempX1 = _mm512_srli_epi32(tempX1, 8);
+      tempX2 = _mm512_srli_epi32(tempX2, 8);
+      tempX3 = _mm512_srli_epi32(tempX3, 8);
+      
+      //x0[ivec]>>8 convert to float
+      __mm512 temp_buff0 = _mm512_cvtepi32_ps(tempX0);
+      __mm512 temp_buff1 = _mm512_cvtepi32_ps(tempX1);
+      __mm512 temp_buff2 = _mm512_cvtepi32_ps(tempX2);
+      __mm512 temp_buff3 = _mm512_cvtepi32_ps(tempX3);
+	    
+      __mm512 temp_vec_0x1p_24f = _mm512_set1_ps(R123_0x1p_24f);
+      
+      //(x0[ivec]>>8)*R123_0x1p_24f
+      temp_buff0 = _mm512_mul_ps(tempX0,temp_vec_0x1p_24f);
+      temp_buff1 = _mm512_mul_ps(tempX1,temp_vec_0x1p_24f);     
+      temp_buff2 = _mm512_mul_ps(tempX2,temp_vec_0x1p_24f);
+      temp_buff3 = _mm512_mul_ps(tempX3,temp_vec_0x1p_24f);
 
-//Store X values
-//       _mm512_store_epi32(&X0[ivec],tempX0);
-//       _mm512_store_epi32(&X1[ivec],tempX1);
-//       _mm512_store_epi32(&X2[ivec],tempX2);
-//       _mm512_store_epi32(&X3[ivec],tempX3);
-      
-      
-//       __m512d temp_buff0 = _mm512_castsi512_pd(tempX0);
-//       __m512d temp_buff1 = _mm512_castsi512_pd(tempX1);
-//       __m512d temp_buff2 = _mm512_castsi512_pd(tempX2);
-//       __m512d temp_buff3 = _mm512_castsi512_pd(tempX3);
+      _mm512_storeu_ps(&buff[ivec])
+	      
+      //Store floats in buff     
+      _mm512_storeu_ps(&buff[NUM_VALS_32*0 + ivec],temp_buff0);
+      _mm512_storeu_ps(&buff[NUM_VALS_32*1 + ivec],temp_buff1);
+      _mm512_storeu_ps(&buff[NUM_VALS_32*2 + ivec],temp_buff2);
+      _mm512_storeu_ps(&buff[NUM_VALS_32*3 + ivec],temp_buff3);
 
-//convert 32-bit int to double - expensive when going from 32 to 64 length - will be splitting
-//still wont work - right! need double size somehow.
-//ok need to start from a 256bit value! And then do eight of these - for later....
-
-//to double
-//       __m512d temp_buff0 = _mm512_cvtepu32_pd(tempX0);
-//       __m512d temp_buff1 = _mm512_cvtepu32_pd(tempX1);
-//       __m512d temp_buff2 = _mm512_cvtepu32_pd(tempX2);
-//       __m512d temp_buff3 = _mm512_cvtepu32_pd(tempX3);
-
-//to float
-      __m512 temp_buff0 = _mm512_cvtepu32_ps(tempX0);
-      __m512 temp_buff1 = _mm512_cvtepu32_ps(tempX1);
-      __m512 temp_buff2 = _mm512_cvtepu32_ps(tempX2);
-      __m512 temp_buff3 = _mm512_cvtepu32_ps(tempX3);
-      
-      
-      //Should check my intrinsics above - whether all unsigned... some maybe signed
-      //results seem ok. but...
-      
-      //Loading constant into vector register - can be done once!***************
-      __m512 temp_vec_0x1p_32 = _mm512_set1_ps(R123_0x1p_32);
-      
-      temp_buff0 = __mm512_mul_ps(temp_buff0,temp_vec_0x1p_32);
-      temp_buff1 = __mm512_mul_ps(temp_buff1,temp_vec_0x1p_32);
-      temp_buff2 = __mm512_mul_ps(temp_buff2,temp_vec_0x1p_32);
-      temp_buff3 = __mm512_mul_ps(temp_buff3,temp_vec_0x1p_32);
-      
-
-//Store doubles in buff     
-      _mm512_store_ps(&buff0[ivec],temp_buff0);
-      _mm512_store_ps(&buff1[ivec],temp_buff1);
-      _mm512_store_ps(&buff2[ivec],temp_buff2);
-      _mm512_store_ps(&buff3[ivec],temp_buff3);
-     
     }
 
     rdtsc_count2 = rdtsc();
@@ -426,33 +424,31 @@ int main (void)
     diff = clock() - start;
     gettimeofday(&tv2, NULL);
     
+    printf("Num sets: %d   Tot. num randoms: %d\n",NUM_VALS_32,NUM_VALS_32*4);
     printf("cycles: %llu\n",rdtsc_count2 - rdtsc_count1);
 
     msec = diff * 1000 / CLOCKS_PER_SEC;
-//    printf("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
     printf("Time taken (CPU)  = %d.%d seconds\n", msec/1000, msec%1000);
     
     printf ("Time taken (Wall) = %f seconds\n",
          (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
          (double) (tv2.tv_sec - tv1.tv_sec));
-    
-    printf ("Time taken (Wall) = %f seconds\n",
-         (double) (tv2.tv_usec - tv1.tv_usec) / 1000000 +
-         (double) (tv2.tv_sec - tv1.tv_sec));
-    
-    printf("buff0[100]  = %f\n",buff0[100]);
-    printf("buff0[1000] = %f\n",buff0[1000]);
-    printf("\nbuff3[NUM_VALS_32-1] = %f\n\n",buff3[NUM_VALS_32-1]);
+      
+    printf("buff[100]  = %f\n",buff[100]);
+    printf("buff[1000] = %f\n",buff[1000]);
+    printf("\nbuff[3*NUM_VALS_32-1] = %f\n\n",buff[3*NUM_VALS_32-1]);
         
     free(X0);
     free(X1);
     free(X2);
     free(X3);
 
-    free(buff0);    
-    free(buff1);    
-    free(buff2);    
-    free(buff3);    
+    free(buff);
+	
+    //free(buff0);    
+    //free(buff1);    
+    //free(buff2);    
+    //free(buff3);    
     
 
     return 0; 
