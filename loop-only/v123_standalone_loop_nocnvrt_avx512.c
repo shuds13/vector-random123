@@ -1,7 +1,8 @@
 //--------------------------------------------------------------------------------------------------
 // S. Hudson: Vector123 loop-only test - using AVX512 instrinsics
 //            Apply vectorizable threefry4x32 to generate large array of random integers
-//            Aims to test performance of pure conversion loop - scalar v vectorized
+//            Aims to test performance of pure threefry loop - scalar v vectorized
+//            Number of values produced is 4*NUM_VALS_32
 //            AVX512 vector intrinsics version.
 //--------------------------------------------------------------------------------------------------
 
@@ -211,8 +212,7 @@ int main (void)
 
     //Ok so if use intrinsics need sep vector length from num vals
     
-    //loop over vector length
-    #pragma omp simd aligned(X0,X1,X2,X3)         
+    //loop over vector length      
     for (ivec=0;ivec < NUM_VALS_32; ivec+=16) {
              
       // load X array vectors   
