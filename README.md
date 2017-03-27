@@ -6,7 +6,9 @@ vector-random123 (abbr. below as vector123) is a vectorizable port of the counte
 
 Random123 resources can be found [here](http://www.thesalmons.org/john/random123)
 
-Note that while the random numbers generated for a given set of counters/keys in the vectorised functions should be identical to the originals, there is no guarantee of correctness. This project is still in development. Initial focus is on the Threefry generator.
+Note that while the random numbers generated for a given set of counters/keys in the vectorised functions should be identical to the originals, there is no guarantee of correctness. This project is still in development. 
+
+Initial focus is on the Threefry generator. This generator is composed mostly of simple operations which are single cycle latency on many platforms. This makes it more performance portable than Philox which requires implementation of mulhilo. It also tends to perform well for both on-the-fly and batch generation approaches. Philox may be included in the future, however.
 
 Current performance results can be viewed under [Benchmarking](#benchmarking) below.
 
